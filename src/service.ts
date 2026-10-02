@@ -486,9 +486,9 @@ export class OrderableService {
     return { priced, warnings };
   }
 
-  private spentToday() {
+  private async spentToday() {
     const now = this.now();
-    return spentOnDay(this.store.ordersCreatedAfter(iso(addMinutes(now, -48 * 60))), now, this.config.policy.timezone);
+    return spentOnDay(await this.store.ordersCreatedAfter(iso(addMinutes(now, -48 * 60))), now, this.config.policy.timezone);
   }
 
   async quoteOrder(input: QuoteInput): Promise<Quote & { next_step: string }> {
@@ -502,7 +502,7 @@ export class OrderableService {
       location_id: loc.id,
       total_minor: priced.total.amount,
       headcount: input.headcount,
-      spent_today_minor: this.spentToday(),
+      spent_today_minor: await this.spentToday(),
     });
     if (this.config.dry_run) warnings.push("DRY_RUN is on: orders will be recorded but not sent to the merchant.");
 
@@ -525,7 +525,7 @@ export class OrderableService {
       as_of: iso(now),
       ttl_seconds: this.config.quote_ttl_seconds,
     };
-    this.store.saveQuote(quote);
+    await this.store.saveQuote(quote);
     return {
       ...quote,
       next_step: policy.allowed
@@ -567,7 +567,7 @@ export class OrderableService {
     confirm: true;
     payment_method?: PaymentMethod | undefined;
   }) {
-    const replay = this.store.findOrderByIdempotencyKey(input.idempotency_key);
+    const replay = await this.store.findOrderByIdempotencyKey(input.idempotency_key);
     if (replay) {
       if (replay.order.quote_id !== input.quote_id)
         throw new OrderableError(
@@ -582,7 +582,7 @@ export class OrderableService {
     if (input.confirm !== true)
       throw new OrderableError("INVALID_REQUEST", "confirm must be true. Get the customer's explicit go-ahead first.");
 
-    const stored = this.store.getQuote(input.quote_id);
+    const stored = await this.store.getQuote(input.quote_id);
     if (!stored) throw new OrderableError("QUOTE_NOT_FOUND", `No quote "${input.quote_id}"`, "quote_order");
     const { quote } = stored;
     if (stored.used_by_order_id)
@@ -627,7 +627,7 @@ export class OrderableService {
       location_id: loc.id,
       total_minor: quote.total.amount,
       headcount: quote.headcount,
-      spent_today_minor: this.spentToday(),
+      spent_today_minor: await this.spentToday(),
     });
     if (!policy.allowed)
       throw new OrderableError("POLICY_BLOCKED", policy.violations.map((v) => v.message).join("; "), null, {
@@ -681,9 +681,9 @@ export class OrderableService {
       ],
     };
 
-    if (!this.store.reserveOrder(order, input.idempotency_key)) {
+    if (!await this.store.reserveOrder(order, input.idempotency_key)) {
       // Lost a race: another call claimed this key or quote first.
-      const winner = this.store.findOrderByIdempotencyKey(input.idempotency_key);
+      const winner = await this.store.findOrderByIdempotencyKey(input.idempotency_key);
       if (winner && winner.order.quote_id === input.quote_id)
         return { order: winner.order, idempotent_replay: true, next_step: "Call get_order_status to track it." };
       throw new OrderableError("QUOTE_ALREADY_USED", "This quote was already turned into an order", "get_order_status");
@@ -694,9 +694,9 @@ export class OrderableService {
         const result = await this.adapter.placeOrder({ order_id: orderId, quote, customer: input.customer, payment: order.payment });
         if (result.payment_url) order.payment = { ...order.payment, url: result.payment_url };
         order.status = result.status;
-        this.store.updateOrder(order, result.external_id);
+        await this.store.updateOrder(order, result.external_id);
       } catch (e) {
-        this.store.releaseOrder(orderId);
+        await this.store.releaseOrder(orderId);
         throw new OrderableError(
           "ADAPTER_ERROR",
           `The merchant's system rejected the order: ${e instanceof Error ? e.message : String(e)}`,
@@ -713,13 +713,13 @@ export class OrderableService {
   }
 
   async getOrderStatus(orderId: string) {
-    const stored = this.store.getOrder(orderId);
+    const stored = await this.store.getOrder(orderId);
     if (!stored) throw new OrderableError("ORDER_NOT_FOUND", `No order "${orderId}"`, null);
     let order = stored.order;
     if (!order.dry_run && stored.external_id && order.status !== "cancelled") {
       const live = await this.adapter.getOrderStatus(stored.external_id, order);
       order = { ...order, status: live.status, timeline: live.timeline };
-      this.store.updateOrder(order);
+      await this.store.updateOrder(order);
     }
     const terminal = ["delivered", "picked_up", "cancelled"].includes(order.status);
     return {
@@ -742,7 +742,7 @@ export class OrderableService {
 
   async cancelOrder(orderId: string, reason: string) {
     const status = await this.getOrderStatus(orderId);
-    const stored = this.store.getOrder(orderId)!;
+    const stored = (await this.store.getOrder(orderId))!;
     const order = stored.order;
     if (order.status === "cancelled")
       return { order_id: orderId, cancelled: true, status: "cancelled" as const, message: "Already cancelled.", timeline: order.timeline };
@@ -769,7 +769,7 @@ export class OrderableService {
       status: "cancelled",
       timeline: [...status.timeline, { status: "cancelled", at: iso(now), note: reason }],
     };
-    this.store.updateOrder(updated);
+    await this.store.updateOrder(updated);
     return { order_id: orderId, cancelled: true, status: "cancelled" as const, message: "Order cancelled.", timeline: updated.timeline };
   }
 

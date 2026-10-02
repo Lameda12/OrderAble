@@ -186,6 +186,24 @@ Then say "Set up my bakery. Here's the menu" and attach a photo. The assistant r
 
 Stock changes work in plain words from Telegram, Slack, the assistant, or the terminal: `orderable stock "out of butter croissants"`. Allow-list who may do it with `ORDERABLE_OWNER_TELEGRAM_IDS` and `ORDERABLE_OWNER_SLACK_IDS`.
 
+## Hosted accounts (many restaurants, one endpoint)
+
+One deployment can serve many restaurants. Each account gets two secret URLs: an **owner URL** that unlocks the owner tools, and an **agent URL** for customers' agents. Menus, quotes and orders live in Postgres, so it works on serverless hosts where every request may land on a fresh instance. Tokens are stored only as SHA-256 hashes, and new accounts start in test mode (orders are recorded, nothing is sent to the kitchen).
+
+We use [Neon](https://neon.tech) (serverless Postgres). On Vercel, add Neon from the Marketplace and it sets `DATABASE_URL` for you; elsewhere, paste Neon's **pooled** connection string (the host with `-pooler`, `?sslmode=require`). Any Postgres 14+ works.
+
+```bash
+export DATABASE_URL="postgres://...-pooler.../neondb?sslmode=require"
+node dist/cli.js accounts migrate                      # once; safe to re-run
+node dist/cli.js accounts create "Rosie's Bakeshop"   # prints the owner URL and agent URL
+node dist/cli.js accounts list
+node dist/cli.js accounts token <id> owner             # rotate a lost URL (old one stops working)
+node dist/cli.js accounts live <id> on                 # leave test mode
+node dist/cli.js serve --http --hosted                 # self-hosted; the Vercel site does this at /api/mcp/<token>
+```
+
+The owner pastes their owner URL into Claude (or any MCP client) and sets up by talking. Billing is not built yet.
+
 ## Or by file: menu.yaml
 
 Owners aren't developers, so the menu file uses dollars, `"07:00-18:00"` hours, `"48h"` lead times and two short allergen lists. `orderable init` writes a starter file with examples for your business type: bakeries get lead-time cakes and a daily sell-out item, cafes get drink modifiers, restaurants get catering trays.
@@ -297,7 +315,7 @@ The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel), with docs a
 - **Webhooks:** push order status to the agent instead of polling (and proactively to Telegram/Slack chats)
 - **WhatsApp and iMessage** (soon), then Microsoft Teams and SMS
 - **Courier delivery for agent orders** (flat fee per trip, no commission): Uber Direct, then DoorDash Drive in North America; Wolt Drive in Europe; GrabExpress in Southeast Asia
-- **Hosted Free and Pro plans:** managed MCP endpoint, connected chat apps, usage-based API
+- **Hosted plans:** self-serve sign-up and billing (accounts and per-restaurant URLs are built)
 - **Substitutions:** let `plan_group_order` propose swaps when an item sells out after quoting
 - **Multi-merchant group orders:** split one team order across two nearby locations
 - **Owner dashboard:** a tiny web UI for updating stock from a phone

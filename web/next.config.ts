@@ -7,6 +7,8 @@ const config: NextConfig = {
   turbopack: { root: dirname(fileURLToPath(import.meta.url)) },
   outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
   poweredByHeader: false,
+  // node-postgres has an optional native binding; keep it out of the bundle.
+  serverExternalPackages: ["pg"],
 };
 
 export default config;

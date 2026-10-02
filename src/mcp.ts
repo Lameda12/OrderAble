@@ -83,22 +83,36 @@ function safeEqual(given: string, token: string) {
 }
 
 /**
- * Accepts `Authorization: Bearer <token>`, or the token as the last path segment
+ * The token from `Authorization: Bearer <token>`, or from the last path segment
  * (`/mcp/<token>`) for MCP clients that can only be given a URL, such as connector UIs.
  * Treat such URLs as secrets.
  */
-export function requestAuthorized(request: Request, token: string) {
+export function extractToken(request: Request): string | null {
   const bearer = /^Bearer\s+(.+)$/i.exec(request.headers.get("authorization") ?? "");
-  if (bearer && safeEqual(bearer[1]!.trim(), token)) return true;
+  if (bearer) return bearer[1]!.trim();
   const inPath = /\/mcp\/([^/?#]+)\/?$/.exec(new URL(request.url).pathname);
-  return !!inPath && safeEqual(decodeURIComponent(inPath[1]!), token);
+  return inPath ? decodeURIComponent(inPath[1]!) : null;
+}
+
+export function requestAuthorized(request: Request, token: string) {
+  const given = extractToken(request);
+  return !!given && safeEqual(given, token);
+}
+
+/** Serve one stateless Streamable HTTP request (JSON responses) with a fresh server. */
+export async function serveMcp(server: McpServer, request: Request): Promise<Response> {
+  const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+  await server.connect(transport);
+  try {
+    return await transport.handleRequest(request);
+  } finally {
+    void transport.close();
+    void server.close();
+  }
 }
 
 /**
- * Stateless Streamable HTTP handler on web-standard Request/Response. Works in Node,
- * Vercel functions, Cloudflare Workers, Deno. Requires `Authorization: Bearer <token>`.
- */
-/**
+ * Single-tenant HTTP handler on web-standard Request/Response (Node, Vercel, Workers, Deno).
  * The token decides the role: the customer token gets the ordering tools; the owner token
  * (if set) also gets the owner_* setup tools.
  */
@@ -107,22 +121,10 @@ export function createHttpHandler(service: OrderableService, token: string, opts
   return async (request: Request): Promise<Response> => {
     const owner = !!opts.ownerToken && requestAuthorized(request, opts.ownerToken);
     if (!owner && !requestAuthorized(request, token))
-      return new Response(JSON.stringify({ error: "unauthorized", hint: "Send Authorization: Bearer <ORDERABLE_TOKEN>, or use the URL /mcp/<ORDERABLE_TOKEN>" }), {
-        status: 401,
-        headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="orderable"' },
-      });
-    const server = createMcpServer(service, { owner });
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-    await server.connect(transport);
-    try {
-      return await transport.handleRequest(request);
-    } finally {
-      void transport.close();
-      void server.close();
-    }
+      return new Response(
+        JSON.stringify({ error: "unauthorized", hint: "Send Authorization: Bearer <ORDERABLE_TOKEN>, or use the URL /mcp/<ORDERABLE_TOKEN>" }),
+        { status: 401, headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="orderable"' } },
+      );
+    return serveMcp(createMcpServer(service, { owner }), request);
   };
 }
-

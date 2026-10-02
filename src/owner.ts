@@ -1,6 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { parseDocument, stringify } from "yaml";
-import { FileAdapter } from "./adapters/file.js";
+import { stringify } from "yaml";
+import type { MenuSource } from "./adapters/types.js";
 import { runDoctor } from "./doctor.js";
 import { OrderableError } from "./errors.js";
 import { type LintFinding, lintMenu } from "./lint.js";
@@ -26,22 +25,18 @@ export const slugify = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "item";
 
-function fileAdapter(service: OrderableService): FileAdapter {
-  if (!(service.adapter instanceof FileAdapter))
+/** The owner tools work with any adapter that can read and write the owner's menu. */
+function source(service: OrderableService): MenuSource {
+  const a = service.adapter as Partial<MenuSource>;
+  if (typeof a.readMenu !== "function" || typeof a.writeMenu !== "function")
     throw new OrderableError(
       "ADAPTER_ERROR",
-      `Owner setup edits menu.yaml, but this server uses the ${service.adapter.name} adapter. Start it with --adapter file.`,
+      `Owner setup can't edit the menu with the ${service.adapter.name} adapter. Use the file adapter or a hosted account.`,
     );
-  return service.adapter;
+  return a as MenuSource;
 }
 
-function load(path: string): Raw | null {
-  return existsSync(path) ? ((parseDocument(readFileSync(path, "utf8")).toJS() as Raw) ?? null) : null;
-}
-
-const HEADER = `# Menu for Orderable. Written by your AI assistant through Orderable's owner tools.
-# You can still edit it by hand; run \`orderable validate\` afterwards.
-`;
+const load = async (service: OrderableService) => ((await source(service).readMenu()) as Raw | null) ?? null;
 
 /** Put keys in the order a person would read them: business first, id and name before details. */
 function tidy(raw: Raw): Raw {
@@ -60,30 +55,18 @@ function tidy(raw: Raw): Raw {
 }
 
 /** Validate the whole menu, then write it. Nothing is written if it doesn't pass. */
-function save(service: OrderableService, input: Raw): LintFinding[] {
-  const adapter = fileAdapter(service);
+async function save(service: OrderableService, input: Raw): Promise<LintFinding[]> {
   const raw = tidy(input);
   const parsed = MenuFile.safeParse(raw);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => `${i.path.join(".") || "menu"}: ${i.message}`);
     throw new OrderableError("INVALID_REQUEST", `Not saved. ${problems.slice(0, 6).join("; ")}`, null, { problems });
   }
-  const path = adapter.menuPath;
-  let text: string;
-  if (existsSync(path)) {
-    // Keep the owner's top-of-file comments; replace the sections we manage.
-    const doc = parseDocument(readFileSync(path, "utf8"));
-    for (const [k, v] of Object.entries(raw)) doc.set(k, doc.createNode(v));
-    text = doc.toString();
-  } else {
-    text = HEADER + stringify(raw);
-  }
-  const { findings } = lintMenu(text);
+  const { findings } = lintMenu(stringify(raw));
   const errors = findings.filter((f) => f.severity === "error");
   if (errors.length)
     throw new OrderableError("INVALID_REQUEST", `Not saved. ${errors.map((e) => e.message).join(" ")}`, null, { findings: errors });
-  writeFileSync(path, text);
-  adapter.reload();
+  await source(service).writeMenu(raw);
   return findings;
 }
 
@@ -92,8 +75,7 @@ const plain = (findings: LintFinding[]) => findings.map((f) => f.message);
 // ---------------------------------------------------------------- setup
 
 export async function getSetup(service: OrderableService) {
-  const adapter = fileAdapter(service);
-  const raw = load(adapter.menuPath);
+  const raw = await load(service);
   if (!raw)
     return {
       has_menu: false,
@@ -105,7 +87,7 @@ export async function getSetup(service: OrderableService) {
       next_step:
         "No menu yet. Ask the owner for the business name and type, each location's address, opening hours, sales tax rate, and whether they do pickup or delivery, then call owner_save_business.",
     };
-  const findings = lintMenu(readFileSync(adapter.menuPath, "utf8")).findings;
+  const findings = lintMenu(stringify(raw)).findings;
   const report = await runDoctor(service.adapter, service.config, service.now());
   return {
     has_menu: true,
@@ -153,8 +135,7 @@ export async function saveBusiness(
     refund_policy?: string | undefined;
   },
 ) {
-  const path = fileAdapter(service).menuPath;
-  const raw: Raw = load(path) ?? { categories: [], items: [], stock_updated_at: "live", stock_ttl_seconds: 900 };
+  const raw: Raw = (await load(service)) ?? { categories: [], items: [], stock_updated_at: "live", stock_ttl_seconds: 900 };
   const prev = (raw.business ?? {}) as Raw;
   raw.business = {
     ...prev,
@@ -180,7 +161,7 @@ export async function saveBusiness(
     changed.push(id);
   }
   raw.locations = existing;
-  const findings = save(service, raw);
+  const findings = await save(service, raw);
   return {
     saved: true,
     business_id: raw.business.id,
@@ -212,8 +193,7 @@ export interface ItemInput {
 }
 
 export async function upsertItems(service: OrderableService, input: { items: ItemInput[] }) {
-  const path = fileAdapter(service).menuPath;
-  const raw = load(path);
+  const raw = await load(service);
   if (!raw?.business)
     throw new OrderableError("INVALID_REQUEST", "There's no business yet. Save the business and a location first.", "owner_save_business");
 
@@ -267,7 +247,7 @@ export async function upsertItems(service: OrderableService, input: { items: Ite
   }
   raw.categories = categories;
   raw.items = items;
-  const findings = save(service, raw);
+  const findings = await save(service, raw);
   const noAllergens = input.items.filter((i) => !i.allergens).map((i) => i.name);
   return {
     saved: created.length + updated.length,
@@ -281,12 +261,11 @@ export async function upsertItems(service: OrderableService, input: { items: Ite
 }
 
 export async function removeItems(service: OrderableService, input: { item_ids: string[] }) {
-  const path = fileAdapter(service).menuPath;
-  const raw = load(path);
+  const raw = await load(service);
   if (!raw) throw new OrderableError("INVALID_REQUEST", "There's no menu yet.", "owner_save_business");
   const before = (raw.items ?? []).length;
   raw.items = ((raw.items ?? []) as Raw[]).filter((i) => !input.item_ids.includes(i.id));
   const removed = before - raw.items.length;
-  const findings = save(service, raw);
+  const findings = await save(service, raw);
   return { removed, issues: plain(findings), next_step: removed ? "Removed." : "No matching items; check ids with owner_get_setup." };
 }

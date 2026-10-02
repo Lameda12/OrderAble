@@ -9,20 +9,20 @@ export interface StoredOrder {
 
 /** Persistence for quotes, orders and idempotency keys. Synchronous by design. */
 export interface Store {
-  saveQuote(quote: Quote): void;
-  getQuote(quoteId: string): { quote: Quote; used_by_order_id: string | null } | null;
-  findOrderByIdempotencyKey(key: string): StoredOrder | null;
+  saveQuote(quote: Quote): Promise<void>;
+  getQuote(quoteId: string): Promise<{ quote: Quote; used_by_order_id: string | null } | null>;
+  findOrderByIdempotencyKey(key: string): Promise<StoredOrder | null>;
   /**
    * Atomically: claim the idempotency key, mark the quote used, insert the order.
    * Returns false if the key or quote was claimed first (the caller re-reads).
    */
-  reserveOrder(order: Order, idempotencyKey: string): boolean;
+  reserveOrder(order: Order, idempotencyKey: string): Promise<boolean>;
   /** Undo a reservation when the merchant's system rejects the order. */
-  releaseOrder(orderId: string): void;
-  getOrder(orderId: string): StoredOrder | null;
-  updateOrder(order: Order, externalId?: string | null): void;
-  ordersCreatedAfter(iso: string): Order[];
-  close(): void;
+  releaseOrder(orderId: string): Promise<void>;
+  getOrder(orderId: string): Promise<StoredOrder | null>;
+  updateOrder(order: Order, externalId?: string | null): Promise<void>;
+  ordersCreatedAfter(iso: string): Promise<Order[]>;
+  close(): Promise<void> | void;
 }
 
 export class SqliteStore implements Store {
@@ -59,7 +59,7 @@ export class SqliteStore implements Store {
     `);
   }
 
-  saveQuote(q: Quote) {
+  async saveQuote(q: Quote) {
     this.db
       .prepare(
         `INSERT INTO quotes (quote_id, location_id, payload, total_minor, currency, created_at, expires_at)
@@ -68,7 +68,7 @@ export class SqliteStore implements Store {
       .run(q.quote_id, q.location_id, JSON.stringify(q), q.total.amount, q.total.currency, q.as_of, q.expires_at);
   }
 
-  getQuote(quoteId: string) {
+  async getQuote(quoteId: string) {
     const row = this.db.prepare(`SELECT payload, used_by_order_id FROM quotes WHERE quote_id = ?`).get(quoteId) as
       | { payload: string; used_by_order_id: string | null }
       | undefined;
@@ -81,13 +81,13 @@ export class SqliteStore implements Store {
       : null;
   }
 
-  findOrderByIdempotencyKey(key: string) {
+  async findOrderByIdempotencyKey(key: string) {
     return this.rowToStored(
       this.db.prepare(`SELECT payload, external_id, idempotency_key FROM orders WHERE idempotency_key = ?`).get(key) as never,
     );
   }
 
-  reserveOrder(order: Order, idempotencyKey: string): boolean {
+  async reserveOrder(order: Order, idempotencyKey: string): Promise<boolean> {
     const tx = this.db.transaction(() => {
       const claimed = this.db
         .prepare(`UPDATE quotes SET used_by_order_id = ? WHERE quote_id = ? AND used_by_order_id IS NULL`)
@@ -119,20 +119,20 @@ export class SqliteStore implements Store {
     }
   }
 
-  releaseOrder(orderId: string) {
+  async releaseOrder(orderId: string) {
     this.db.transaction(() => {
       this.db.prepare(`DELETE FROM orders WHERE order_id = ?`).run(orderId);
       this.db.prepare(`UPDATE quotes SET used_by_order_id = NULL WHERE used_by_order_id = ?`).run(orderId);
     })();
   }
 
-  getOrder(orderId: string) {
+  async getOrder(orderId: string) {
     return this.rowToStored(
       this.db.prepare(`SELECT payload, external_id, idempotency_key FROM orders WHERE order_id = ?`).get(orderId) as never,
     );
   }
 
-  updateOrder(order: Order, externalId?: string | null) {
+  async updateOrder(order: Order, externalId?: string | null) {
     this.db
       .prepare(
         `UPDATE orders SET status = ?, payload = ?, external_id = COALESCE(?, external_id) WHERE order_id = ?`,
@@ -140,7 +140,7 @@ export class SqliteStore implements Store {
       .run(order.status, JSON.stringify(order), externalId ?? null, order.order_id);
   }
 
-  ordersCreatedAfter(iso: string) {
+  async ordersCreatedAfter(iso: string) {
     return (
       this.db.prepare(`SELECT payload FROM orders WHERE created_at > ? ORDER BY created_at`).all(iso) as { payload: string }[]
     ).map((r) => JSON.parse(r.payload) as Order);

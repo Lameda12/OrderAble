@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { LineCounter, parseDocument } from "yaml";
+import { LineCounter, parseDocument, stringify } from "yaml";
 import { OrderableError } from "../errors.js";
 import { MenuFile, normalizeMenu } from "../menu-format.js";
 import type { Catalog } from "../schema.js";
 import { LocalCatalogAdapter } from "./local.js";
-import type { StockChange } from "./types.js";
+import type { MenuSource, StockChange } from "./types.js";
 
 export interface MenuIssue {
   path: string;
@@ -73,7 +73,11 @@ export function loadMenuFile(path: string): Catalog {
   return result.catalog;
 }
 
-const emptyCatalog = (): Catalog => ({
+const MENU_HEADER = `# Menu for Orderable. Written by your AI assistant through Orderable's owner tools.
+# You can still edit it by hand; run \`orderable validate\` afterwards.
+`;
+
+export const emptyCatalog = (): Catalog => ({
   businesses: [],
   locations: [],
   categories: [],
@@ -84,7 +88,7 @@ const emptyCatalog = (): Catalog => ({
 });
 
 /** Serves a business from menu.yaml and hot-reloads it when the owner edits the file. */
-export class FileAdapter extends LocalCatalogAdapter {
+export class FileAdapter extends LocalCatalogAdapter implements MenuSource {
   override readonly name = "file";
   private mtimeMs: number;
 
@@ -139,6 +143,26 @@ export class FileAdapter extends LocalCatalogAdapter {
     writeFileSync(abs, doc.toString());
     this.catalog = loadMenuFile(this.path);
     this.mtimeMs = statSync(abs).mtimeMs;
+  }
+
+  async readMenu() {
+    const abs = resolve(this.path);
+    return existsSync(abs) ? ((parseDocument(readFileSync(abs, "utf8")).toJS() as Record<string, unknown>) ?? null) : null;
+  }
+
+  /** Write the menu, keeping the owner's comments at the top of an existing file. */
+  async writeMenu(menu: Record<string, unknown>) {
+    const abs = resolve(this.path);
+    let text: string;
+    if (existsSync(abs)) {
+      const doc = parseDocument(readFileSync(abs, "utf8"));
+      for (const [k, v] of Object.entries(menu)) doc.set(k, doc.createNode(v));
+      text = doc.toString();
+    } else {
+      text = MENU_HEADER + stringify(menu);
+    }
+    writeFileSync(abs, text);
+    this.reload();
   }
 
   /** Re-read menu.yaml now (after the owner tools write it). */

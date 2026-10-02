@@ -1,4 +1,4 @@
-import { mcpHandler } from "@/lib/demo-server";
+import { handleMcp } from "@/lib/demo-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ const cors = {
 };
 
 async function handle(request: Request) {
-  const res = await mcpHandler()(request);
+  const res = await handleMcp(request);
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(cors)) headers.set(k, v);
   return new Response(res.body, { status: res.status, headers });

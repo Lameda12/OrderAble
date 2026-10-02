@@ -14,11 +14,12 @@ const STATUS: [string, string, "done" | "zero" | "planned"][] = [
   ["Telegram and Slack ordering bots (Claude)", "Shipped, not yet run with real customers", "done"],
   ["Menu setup by talking to an AI assistant", "Shipped, tested with an MCP client", "done"],
   ["Stock updates by text message", "Shipped", "done"],
-  ["Automated tests", "87 passing", "done"],
+  ["Hosted accounts: one secret URL for the owner, one for agents, Postgres", "Shipped, not yet in production", "done"],
+  ["Automated tests", "91 passing", "done"],
   ["Restaurants live", "0", "zero"],
   ["Paying customers", "0", "zero"],
   ["Revenue", "$0", "zero"],
-  ["Hosted plans, API keys, billing", "Designed, not built", "planned"],
+  ["Self-serve sign-up and billing", "Designed, not built", "planned"],
   ["Courier delivery (Uber Direct first)", "Researched, not built", "planned"],
 ];
 
@@ -81,7 +82,7 @@ export default function Investors() {
           <ol>
             <li>25 restaurants in Halifax live, set up in person.</li>
             <li>Three offices ordering team lunch through Slack every week.</li>
-            <li>Hosted accounts with API keys, then billing once a restaurant passes the free tier.</li>
+            <li>Self-serve sign-up, then billing once a restaurant passes the free tier.</li>
             <li>Courier delivery through Uber Direct for restaurants without their own drivers.</li>
           </ol>
           <p>We'll measure four numbers: completed orders, quotes that turn into orders, orders lost to stale stock, and time to set up a restaurant.</p>

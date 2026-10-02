@@ -70,13 +70,22 @@ export async function runHttp(
   opts: { port: number; host: string; token: string; ownerToken?: string | undefined },
 ) {
   const handle = createHttpHandler(service, opts.token, { ownerToken: opts.ownerToken });
+  return listen(handle, opts, { adapter: service.adapter.name, dry_run: service.config.dry_run });
+}
+
+/** Serve any web-standard MCP handler (single-tenant or hosted) on /mcp, with /health. */
+export async function listen(
+  handle: (req: Request) => Promise<Response>,
+  opts: { port: number; host: string },
+  health: Record<string, unknown>,
+) {
   const origin = `http://${opts.host}:${opts.port}`;
   const http = createHttpServer(async (req, res) => {
     try {
       const path = new URL(req.url ?? "/", origin).pathname;
       if (path === "/health") {
         res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ ok: true, version: VERSION, adapter: service.adapter.name, dry_run: service.config.dry_run }));
+        res.end(JSON.stringify({ ok: true, version: VERSION, ...health }));
         return;
       }
       if (path !== "/mcp" && !path.startsWith("/mcp/")) {
@@ -91,6 +100,6 @@ export async function runHttp(
     }
   });
   await new Promise<void>((resolve) => http.listen(opts.port, opts.host, resolve));
-  console.error(`orderable ${VERSION} on ${origin}/mcp (adapter=${service.adapter.name}, dry_run=${service.config.dry_run})`);
+  console.error(`orderable ${VERSION} on ${origin}/mcp (${Object.entries(health).map(([k, v]) => `${k}=${v}`).join(", ")})`);
   return http;
 }

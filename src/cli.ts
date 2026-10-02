@@ -14,7 +14,7 @@ import { OrderableAgent } from "./agent.js";
 import { handleSlackRequest, slackManifest } from "./channels/slack.js";
 import { STOCK_HELP, applyStockMessage, ownerIds } from "./stock-text.js";
 import { TelegramApi, runTelegramPolling } from "./channels/telegram.js";
-import { VERSION, createAdapter, createService, runHttp, runStdio } from "./server.js";
+import { VERSION, createAdapter, createService, listen, runHttp, runStdio } from "./server.js";
 import { type InitAnswers, configTemplate, menuTemplate } from "./templates.js";
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -30,6 +30,8 @@ Usage
   orderable serve --stdio        Run the MCP server for Claude Desktop / Claude Code
   orderable serve --http         Run the MCP server over Streamable HTTP (needs ORDERABLE_TOKEN)
   orderable serve --stdio --owner   Same, plus owner tools: set up the menu by talking to your AI assistant
+  orderable serve --http --hosted   Multi-tenant: one endpoint for every account in DATABASE_URL
+  orderable accounts create "<name>"   Hosted: create a restaurant account and its owner/agent URLs
   orderable stock "<message>"    Update stock in plain words, e.g. "out of croissants"
   orderable bot telegram         Telegram bot (long polling, no public URL needed)
   orderable bot slack            Slack app endpoint: /slack/events and /slack/commands
@@ -54,6 +56,8 @@ Environment
   DRY_RUN=false      Actually send orders to the merchant (default: true, record only)
   ORDERABLE_TOKEN    Bearer token required by --http (or use the URL /mcp/<token>)
   ORDERABLE_OWNER_TOKEN   Second token for --http that also unlocks the owner tools
+  DATABASE_URL       Postgres for hosted accounts (orderable accounts ...)
+  ORDERABLE_PUBLIC_URL   Base URL printed in account links (default https://orderable-mcp.vercel.app/api)
   ANTHROPIC_API_KEY  For the chat bots (Claude runs the conversation)
   TELEGRAM_BOT_TOKEN From @BotFather
   SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET   From your Slack app
@@ -77,6 +81,8 @@ const { values: flags, positionals } = parseArgs({
     stdio: { type: "boolean" },
     http: { type: "boolean" },
     owner: { type: "boolean" },
+    live: { type: "boolean" },
+    hosted: { type: "boolean" },
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "v" },
   },
@@ -207,6 +213,16 @@ async function doctor() {
 
 async function serve() {
   const cfg = config();
+  if (flags.hosted) {
+    // Multi-tenant: every request's token picks a restaurant account in Postgres.
+    if (!process.env.DATABASE_URL) throw new Error("--hosted needs DATABASE_URL");
+    const { default: pg } = await import("pg");
+    const hosted = await import("./hosted.js");
+    const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5 }) as unknown as import("./hosted.js").Db;
+    await hosted.migrate(db);
+    await listen(hosted.createHostedHandler({ db, config: cfg }), cfg.http, { mode: "hosted" });
+    return;
+  }
   const service = createService(cfg);
   if (flags.http) {
     let token = process.env.ORDERABLE_TOKEN ?? "";
@@ -287,6 +303,73 @@ async function stock() {
   if (!result.changes.length) process.exit(1);
 }
 
+async function accounts() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("Set DATABASE_URL to your Postgres connection string (Neon, or any Postgres).");
+  const { default: pg } = await import("pg");
+  const hosted = await import("./hosted.js");
+  const pool = new pg.Pool({ connectionString: url, max: 1 });
+  const db = pool as unknown as import("./hosted.js").Db;
+  const base = process.env.ORDERABLE_PUBLIC_URL ?? "https://orderable-mcp.vercel.app/api";
+  const [, sub, a, b] = positionals;
+  try {
+    switch (sub) {
+      case "migrate":
+        await hosted.migrate(db);
+        console.log(`${c.green("✓")} Tables are ready.`);
+        return;
+      case "create": {
+        if (!a) throw new Error('Usage: orderable accounts create "Business name" [--live]');
+        await hosted.migrate(db);
+        const account = await hosted.createAccount(db, a, { live: !!flags.live });
+        const urls = hosted.accountUrls(base, await hosted.issueToken(db, account.id, "owner"), await hosted.issueToken(db, account.id, "agent"));
+        console.log(`
+${c.green("✓")} Created ${c.bold(account.name)} (${account.id})${account.dry_run ? c.dim(", test mode on") : ""}
+
+  ${c.bold("Owner URL")}  give this to the owner only. They add it to Claude as a connector,
+             then set up the menu by talking to it.
+  ${urls.owner_url}
+
+  ${c.bold("Agent URL")}  for customers' agents and chat bots. Ordering only.
+  ${urls.agent_url}
+
+  These are shown once. Lost one? ${c.cyan(`orderable accounts token ${account.id} owner`)}
+`);
+        return;
+      }
+      case "list": {
+        const rows = await hosted.listAccounts(db);
+        if (!rows.length) return console.log("No accounts yet.");
+        for (const r of rows)
+          console.log(`${r.id.padEnd(36)} ${r.name.padEnd(28)} ${r.has_menu ? "menu" : c.dim("no menu")}  ${r.dry_run ? c.yellow("test") : c.green("live")}  ${r.orders} orders`);
+        return;
+      }
+      case "token": {
+        if (!a || (b !== "owner" && b !== "agent")) throw new Error("Usage: orderable accounts token <account-id> owner|agent");
+        const revoked = await hosted.revokeTokens(db, a, b);
+        const token = await hosted.issueToken(db, a, b);
+        console.log(`${c.green("✓")} New ${b} URL${revoked ? ` (revoked ${revoked} old)` : ""}:\n  ${base.replace(/\/$/, "")}/mcp/${token}`);
+        return;
+      }
+      case "live": {
+        if (!a || (b !== "on" && b !== "off")) throw new Error("Usage: orderable accounts live <account-id> on|off");
+        await hosted.setLive(db, a, b === "on");
+        console.log(b === "on" ? `${c.green("✓")} ${a} is live: orders now go to the kitchen.` : `${c.green("✓")} ${a} is back in test mode.`);
+        return;
+      }
+      default:
+        console.log(`Usage:
+  orderable accounts create "Business name" [--live]
+  orderable accounts list
+  orderable accounts token <account-id> owner|agent
+  orderable accounts live <account-id> on|off
+  orderable accounts migrate`);
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
 async function main() {
   if (flags.version) return console.log(VERSION);
   const cmd = positionals[0];
@@ -304,6 +387,8 @@ async function main() {
       return bot();
     case "stock":
       return stock();
+    case "accounts":
+      return accounts();
     default:
       console.error(`Unknown command "${cmd}".\n\n${HELP}`);
       process.exit(2);

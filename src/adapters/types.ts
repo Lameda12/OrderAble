@@ -99,3 +99,11 @@ export interface StockChange {
   status: StockStatus;
   quantity: number | null;
 }
+
+/** Adapters that hold the owner's menu (file, hosted database) let the owner tools edit it. */
+export interface MenuSource {
+  /** The menu in menu.yaml form, or null if there isn't one yet. */
+  readMenu(): Promise<Record<string, unknown> | null>;
+  /** Replace the menu (already validated) and start serving it. */
+  writeMenu(menu: Record<string, unknown>): Promise<void>;
+}

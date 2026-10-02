@@ -41,6 +41,17 @@ Pickup only for now. Here's the menu: [photo]`}</code>
         agents never see them.
       </p>
 
+      <h2>Hosted: two links, nothing to install</h2>
+      <p>
+        On a hosted account you get two private links. Paste the owner link into Claude (Settings, Connectors, add custom connector) and set up
+        by talking, as above. Share the agent link with customers' agents. Each restaurant's menu and orders are kept apart, links are stored
+        only as hashes, and a lost link can be replaced. New accounts start in test mode until you switch them live.
+      </p>
+      <p>
+        Running it yourself? Point <code>DATABASE_URL</code> at Postgres (we use Neon, pooled connection string), then run{" "}
+        <code>orderable accounts migrate</code> and <code>orderable accounts create &quot;Your Bakery&quot;</code>.
+      </p>
+
       <h2>Prefer a file?</h2>
       <pre>
         <code>orderable init</code>

@@ -114,7 +114,7 @@ describe("idempotent retry", () => {
     const second = await service.placeOrder(args);
     expect(second.idempotent_replay).toBe(true);
     expect(second.order.order_id).toBe(first.order.order_id);
-    expect(store.ordersCreatedAfter(new Date(now().getTime() - 3_600_000).toISOString())).toHaveLength(1);
+    expect(await store.ordersCreatedAfter(new Date(now().getTime() - 3_600_000).toISOString())).toHaveLength(1);
   });
 
   it("concurrent retries still produce one order", async () => {
@@ -123,7 +123,7 @@ describe("idempotent retry", () => {
     const args = { quote_id: quote.quote_id, idempotency_key: "retry-key-0002", customer, confirm: true as const };
     const results = await Promise.all([service.placeOrder(args), service.placeOrder(args), service.placeOrder(args)]);
     expect(new Set(results.map((r) => r.order.order_id)).size).toBe(1);
-    expect(store.ordersCreatedAfter(new Date(now().getTime() - 3_600_000).toISOString())).toHaveLength(1);
+    expect(await store.ordersCreatedAfter(new Date(now().getTime() - 3_600_000).toISOString())).toHaveLength(1);
   });
 
   it("rejects reusing a key for a different quote", async () => {
