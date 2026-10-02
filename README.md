@@ -10,6 +10,20 @@ Built for B2B and office ordering first (team lunch, catering, recurring pantry 
 
 ---
 
+## Plans
+
+| | Open source | Free (hosted) | Pro (API) |
+| --- | --- | --- | --- |
+| Price | $0, MIT, forever | $0, up to 50 orders/month | $0.25 per completed order |
+| Runs on | Your machine or cloud | Orderable cloud | Orderable cloud |
+| MCP endpoint | Self-hosted | Hosted | Hosted |
+| Chat apps | Telegram, Slack (self-run bots) | Telegram, Slack, connected for you | All channels, WhatsApp and iMessage first |
+| Locations | Unlimited | 1 | Unlimited |
+
+No commission on any plan: customers pay the business directly. Hosted plans are in early access ([request it](https://github.com/Lameda12/OrderAble/issues/new?title=Early%20access&labels=early-access)).
+
+**Channels:** MCP, Telegram and Slack are live. WhatsApp and iMessage are coming soon.
+
 ## 60-second quickstart
 
 ```bash
@@ -269,7 +283,8 @@ The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel). It runs the
 - **v0.2 adapters:** Square (finish orders/inventory), Toast, Clover, Shopify, Lightspeed
 - **Recurring orders:** "every Friday, lunch for the team" with a standing spending policy
 - **Webhooks:** push order status to the agent instead of polling (and proactively to Telegram/Slack chats)
-- **More chat surfaces:** WhatsApp Business, Microsoft Teams, SMS
+- **WhatsApp and iMessage** (soon), then Microsoft Teams and SMS
+- **Hosted Free and Pro plans:** managed MCP endpoint, connected chat apps, usage-based API
 - **Substitutions:** let `plan_group_order` propose swaps when an item sells out after quoting
 - **Multi-merchant group orders:** split one team order across two nearby locations
 - **Owner dashboard:** a tiny web UI for updating stock from a phone

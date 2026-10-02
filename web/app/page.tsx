@@ -16,6 +16,45 @@ const tools = [
   ["cancel_order", "Inside the window you set. Not a minute after."],
 ];
 
+const EARLY_ACCESS = (plan: string) =>
+  `${GITHUB}/issues/new?title=${encodeURIComponent(`Early access: ${plan}`)}&labels=early-access`;
+
+const CHANNELS: [string, boolean][] = [
+  ["MCP", true],
+  ["Telegram", true],
+  ["Slack", true],
+  ["WhatsApp", false],
+  ["iMessage", false],
+];
+
+const PLANS = [
+  {
+    name: "Open source",
+    price: "$0",
+    unit: "forever · MIT",
+    points: ["Self-host anywhere", "Every tool and adapter", "Telegram and Slack bots"],
+    cta: "Get the code",
+    href: GITHUB,
+  },
+  {
+    name: "Free",
+    price: "$0",
+    unit: "hosted · up to 50 orders a month",
+    points: ["Hosted MCP endpoint", "Telegram and Slack, connected", "One location"],
+    cta: "Get early access",
+    href: EARLY_ACCESS("Free"),
+    featured: true,
+  },
+  {
+    name: "Pro",
+    price: "$0.25",
+    unit: "per completed order · API",
+    points: ["Unlimited locations", "REST API and webhooks", "WhatsApp and iMessage, first"],
+    cta: "Get early access",
+    href: EARLY_ACCESS("Pro"),
+  },
+];
+
 export default function Page() {
   return (
     <main>
@@ -30,6 +69,7 @@ export default function Page() {
           <a href="#tools">Tools</a>
           <a href="#owners">Owners</a>
           <a href="#channels">Chat apps</a>
+          <a href="#plans">Plans</a>
           <a href="#try">Try it</a>
           <a href={GITHUB} className="nav-keep">GitHub</a>
         </div>
@@ -267,59 +307,22 @@ export default function Page() {
       {/* Channels */}
       <section className="section" id="channels">
         <Reveal>
-          <p className="eyebrow crust">Everywhere your team talks</p>
-        </Reveal>
-        <Reveal delay={1}>
           <h2 className="headline md">
             Order from the chat
             <br />
             <span className="dim">you already have open.</span>
           </h2>
         </Reveal>
-        <Reveal delay={2}>
-          <p className="lede">
-            Same nine tools, same rules, same safety checks. <strong>Telegram, Slack, or any MCP client.</strong>
-          </p>
+        <Reveal delay={1}>
+          <ul className="channels">
+            {CHANNELS.map(([name, live]) => (
+              <li key={name} className={live ? "" : "soon"}>
+                {name}
+                {!live && <span>Soon</span>}
+              </li>
+            ))}
+          </ul>
         </Reveal>
-        <div className="pillars">
-          <Reveal className="tile">
-            <h3>Telegram.</h3>
-            <p>
-              A bot from <code>@BotFather</code> and one command. <strong>No server needed:</strong> <code>orderable bot telegram</code> long-polls
-              from the laptop behind the counter.
-            </p>
-            <div className="specimen">
-              <div><span className="k">you</span> 3 oat lattes, 2pm pickup</div>
-              <div><span className="k">bot</span> $20.52 incl. tax. Place it?</div>
-              <div><span className="k">you</span> <span className="good">yes</span></div>
-            </div>
-          </Reveal>
-          <Reveal className="tile" delay={1}>
-            <h3>Slack.</h3>
-            <p>
-              @mention it in <code>#lunch</code> and it answers in the thread. DM it, or type <code>/order</code>. <strong>One manifest</strong>, paste and
-              install.
-            </p>
-            <div className="specimen">
-              <div><span className="k">#lunch</span> lunch for 12, 3 veg, 1 GF</div>
-              <div><span className="k">budget</span> $20 a head</div>
-              <div><span className="k">thread</span> <span className="good">everyone covered</span></div>
-              <div><span className="k">total</span> $227.76</div>
-            </div>
-          </Reveal>
-          <Reveal className="tile" delay={2}>
-            <h3>Any MCP client.</h3>
-            <p>
-              Claude Desktop, Claude Code, Claude in Slack, Cursor. <strong>Paste one URL</strong> and the agent sees your whole menu.
-            </p>
-            <div className="specimen">
-              <div><span className="k">url</span> /api/mcp/&lt;token&gt;</div>
-              <div><span className="k">tools</span> 9</div>
-              <div><span className="k">resources</span> menu, policies</div>
-              <div><span className="k">dry_run</span> <span className="meh">true</span></div>
-            </div>
-          </Reveal>
-        </div>
       </section>
 
       {/* Try it */}
@@ -341,6 +344,37 @@ export default function Page() {
         </Reveal>
         <Reveal delay={2}>
           <Console />
+        </Reveal>
+      </section>
+
+      {/* Plans */}
+      <section className="section" id="plans">
+        <Reveal>
+          <h2 className="headline md">
+            Start free.
+            <br />
+            <span className="dim">Stay free, if you like.</span>
+          </h2>
+        </Reveal>
+        <div className="plans">
+          {PLANS.map((plan, i) => (
+            <Reveal key={plan.name} delay={(i % 3) as 0 | 1 | 2} className={`plan ${plan.featured ? "featured" : ""}`}>
+              <p className="plan-name">{plan.name}</p>
+              <p className="plan-price">{plan.price}</p>
+              <p className="plan-unit">{plan.unit}</p>
+              <ul>
+                {plan.points.map((pt) => (
+                  <li key={pt}>{pt}</li>
+                ))}
+              </ul>
+              <a className={`pill ${plan.featured ? "crust" : "ghost"}`} href={plan.href}>
+                {plan.cta}
+              </a>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal>
+          <p className="fineprint">No commission on any plan. Your customers pay you directly.</p>
         </Reveal>
       </section>
 
