@@ -11,6 +11,7 @@ import type {
   Menu,
   PricingRequest,
   PricingResult,
+  StockChange,
   StockLevel,
 } from "./types.js";
 
@@ -153,6 +154,12 @@ export class LocalCatalogAdapter implements Adapter {
   async cancelOrder(externalId: string) {
     this.cancelled.set(externalId, iso(this.now()));
     return { cancelled: true };
+  }
+
+  /** Owner stock updates. The data is now confirmed fresh, so the freshness clock restarts. */
+  async updateStock(changes: StockChange[]) {
+    for (const c of changes) this.setStock(c.location_id, c.item_id, c.status, c.quantity);
+    if (this.catalog.stock_as_of !== null) this.catalog.stock_as_of = iso(this.now());
   }
 
   /** Test/demo helper: change stock at runtime. */

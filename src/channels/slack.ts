@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { type OrderableAgent, chunkText } from "../agent.js";
+import { applyStockMessage } from "../stock-text.js";
 
 /**
  * Slack app for Orderable: @mention it in a channel (it answers in a thread), DM it, or use
@@ -13,6 +14,8 @@ export interface SlackDeps {
   signingSecret: string;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** Slack user ids allowed to change stock by message. */
+  owners?: Set<string>;
 }
 
 export interface SlackResult {
@@ -162,6 +165,13 @@ export function handleSlackRequest(rawBody: string, headers: Headers, deps: Slac
         deps.agent.reset(conversationId);
         await slackApi(deps, "chat.postMessage", { channel: ev.channel, thread_ts: threadTs, text: "Fresh start. What can I get you?" });
         return;
+      }
+      if (deps.owners?.has(ev.user!)) {
+        const stock = await applyStockMessage(deps.agent.service.adapter, text);
+        if (stock.handled) {
+          await slackApi(deps, "chat.postMessage", { channel: ev.channel, thread_ts: threadTs, text: stock.message });
+          return;
+        }
       }
       await slackApi(deps, "reactions.add", { channel: ev.channel, timestamp: ev.ts, name: "eyes" }).catch(() => undefined);
       let reply: string;

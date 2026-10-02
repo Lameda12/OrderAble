@@ -58,6 +58,11 @@ export class OrderableAgent {
   private conversations = new Map<string, Conversation>();
   private queues = new Map<string, Promise<unknown>>();
 
+  /** The Orderable service this agent orders through. */
+  get service() {
+    return this.opts.service;
+  }
+
   constructor(private readonly opts: AgentOptions) {
     this.anthropic = opts.client ?? new Anthropic();
     this.model = opts.model ?? process.env.ORDERABLE_AGENT_MODEL ?? "claude-opus-5-5";

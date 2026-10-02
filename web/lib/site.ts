@@ -12,6 +12,7 @@ export const SITE = {
   address: "[MAILING ADDRESS], Halifax, Nova Scotia, Canada",
   governingLaw: "the Province of Nova Scotia and the federal laws of Canada that apply there",
   lastUpdated: "October 2, 2026",
+  founder: "[FOUNDER NAME]",
 };
 
 export const isPlaceholder = (v: string) => v.startsWith("[");

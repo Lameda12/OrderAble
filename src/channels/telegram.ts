@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { type OrderableAgent, chunkText } from "../agent.js";
+import { STOCK_HELP, applyStockMessage } from "../stock-text.js";
 
 /**
  * Telegram bot for Orderable. Two ways to run it:
@@ -50,7 +51,12 @@ Try: "Lunch for 8 tomorrow at noon, 2 vegetarian, under $20 each, delivered to 1
 const seen = new Map<number, number>();
 
 /** Handle one update. Safe to call twice for the same update_id (Telegram retries). */
-export async function handleTelegramUpdate(update: TelegramUpdate, agent: OrderableAgent, api: TelegramApi) {
+export async function handleTelegramUpdate(
+  update: TelegramUpdate,
+  agent: OrderableAgent,
+  api: TelegramApi,
+  opts: { owners?: Set<string> } = {},
+) {
   const now = Date.now();
   for (const [id, at] of seen) if (now - at > 10 * 60_000) seen.delete(id);
   if (seen.has(update.update_id)) return;
@@ -62,7 +68,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate, agent: Ordera
   const text = msg.text.trim();
   const conversationId = `telegram:${chatId}`;
 
-  if (/^\/start\b/.test(text) || /^\/help\b/.test(text)) return api.send(chatId, WELCOME);
+  const isOwner = !!msg.from && !!opts.owners?.has(String(msg.from.id));
+  if (/^\/start\b/.test(text) || /^\/help\b/.test(text)) return api.send(chatId, isOwner ? `${WELCOME}\n\n${STOCK_HELP}` : WELCOME);
+
+  // Owners (allow-listed by Telegram user id) can change stock in plain words. No LLM involved.
+  if (isOwner) {
+    if (/^\/stock\s*$/.test(text)) return api.send(chatId, STOCK_HELP);
+    const result = await applyStockMessage(agent.service.adapter, text);
+    if (result.handled) return api.send(chatId, result.message);
+  }
   if (/^\/reset\b/.test(text)) {
     agent.reset(conversationId);
     return api.send(chatId, "Fresh start. What can I get you?");
@@ -97,7 +111,12 @@ export function verifyTelegramSecret(header: string | null, secret: string) {
 }
 
 /** Long-poll getUpdates forever. Stops when the signal aborts. */
-export async function runTelegramPolling(agent: OrderableAgent, api: TelegramApi, signal?: AbortSignal) {
+export async function runTelegramPolling(
+  agent: OrderableAgent,
+  api: TelegramApi,
+  signal?: AbortSignal,
+  opts: { owners?: Set<string> } = {},
+) {
   await api.call("deleteWebhook", { drop_pending_updates: false });
   const me = await api.call<{ username: string }>("getMe");
   console.error(`Telegram bot @${me.username} is polling for messages`);
@@ -108,7 +127,7 @@ export async function runTelegramPolling(agent: OrderableAgent, api: TelegramApi
       for (const u of updates) {
         offset = u.update_id + 1;
         // Different chats run concurrently; the agent serializes messages within a chat.
-        void handleTelegramUpdate(u, agent, api);
+        void handleTelegramUpdate(u, agent, api, opts);
       }
     } catch (e) {
       console.error("getUpdates failed, retrying in 3s:", e instanceof Error ? e.message : e);

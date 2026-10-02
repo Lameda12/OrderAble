@@ -12,6 +12,7 @@ import { BusinessType } from "./schema.js";
 import { createServer as createNodeServer } from "node:http";
 import { OrderableAgent } from "./agent.js";
 import { handleSlackRequest, slackManifest } from "./channels/slack.js";
+import { STOCK_HELP, applyStockMessage, ownerIds } from "./stock-text.js";
 import { TelegramApi, runTelegramPolling } from "./channels/telegram.js";
 import { VERSION, createAdapter, createService, runHttp, runStdio } from "./server.js";
 import { type InitAnswers, configTemplate, menuTemplate } from "./templates.js";
@@ -28,6 +29,7 @@ Usage
   orderable doctor               Agent-readiness score out of 100, with the top 3 fixes
   orderable serve --stdio        Run the MCP server for Claude Desktop / Claude Code
   orderable serve --http         Run the MCP server over Streamable HTTP (needs ORDERABLE_TOKEN)
+  orderable stock "<message>"    Update stock in plain words, e.g. "out of croissants"
   orderable bot telegram         Telegram bot (long polling, no public URL needed)
   orderable bot slack            Slack app endpoint: /slack/events and /slack/commands
   orderable bot slack-manifest <public-url>   Print a Slack app manifest
@@ -53,6 +55,7 @@ Environment
   ANTHROPIC_API_KEY  For the chat bots (Claude runs the conversation)
   TELEGRAM_BOT_TOKEN From @BotFather
   SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET   From your Slack app
+  ORDERABLE_OWNER_TELEGRAM_IDS, ORDERABLE_OWNER_SLACK_IDS   Who may update stock by message
 `;
 
 const { values: flags, positionals } = parseArgs({
@@ -226,7 +229,9 @@ async function bot() {
   if (kind === "telegram") {
     const ac = new AbortController();
     process.on("SIGINT", () => ac.abort());
-    await runTelegramPolling(agent, new TelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? ""), ac.signal);
+    await runTelegramPolling(agent, new TelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? ""), ac.signal, {
+      owners: ownerIds(process.env.ORDERABLE_OWNER_TELEGRAM_IDS),
+    });
     return;
   }
   if (kind === "slack") {
@@ -245,7 +250,12 @@ async function bot() {
       for await (const ch of req) chunks.push(ch as Buffer);
       const headers = new Headers();
       for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers.set(k, v);
-      const result = handleSlackRequest(Buffer.concat(chunks).toString("utf8"), headers, { agent, botToken, signingSecret });
+      const result = handleSlackRequest(Buffer.concat(chunks).toString("utf8"), headers, {
+        agent,
+        botToken,
+        signingSecret,
+        owners: ownerIds(process.env.ORDERABLE_OWNER_SLACK_IDS),
+      });
       res.statusCode = result.status;
       res.setHeader("content-type", result.contentType);
       res.end(result.body);
@@ -257,6 +267,19 @@ async function bot() {
   }
   console.error("Usage: orderable bot telegram | slack | slack-manifest <public-url>");
   process.exit(2);
+}
+
+async function stock() {
+  const text = positionals.slice(1).join(" ").trim();
+  if (!text) return console.log(STOCK_HELP);
+  const cfg = config();
+  const result = await applyStockMessage(createAdapter(cfg), text);
+  if (!result.handled) {
+    console.error(`${c.yellow("!")} Not a stock update. ${STOCK_HELP}`);
+    process.exit(2);
+  }
+  console.log(`${result.changes.length ? c.green("✓") : c.yellow("!")} ${result.message}`);
+  if (!result.changes.length) process.exit(1);
 }
 
 async function main() {
@@ -274,6 +297,8 @@ async function main() {
       return serve();
     case "bot":
       return bot();
+    case "stock":
+      return stock();
     default:
       console.error(`Unknown command "${cmd}".\n\n${HELP}`);
       process.exit(2);

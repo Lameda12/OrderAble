@@ -58,6 +58,25 @@ stock_updated_at: live      # or a timestamp`}</code>
   1. Add allergens to Seasonal Fruit Galette… (+4)`}</code>
       </pre>
 
+      <h2>Update stock by text</h2>
+      <p>Text the Orderable bot on Telegram or Slack, or type it at the terminal. No app, no file editing:</p>
+      <pre>
+        <code>{`out of butter croissants
+6 morning buns left
+sourdough is back
+running low on lattes
+86 the soup at Quinpool`}</code>
+      </pre>
+      <p>
+        If a message matches more than one item, Orderable asks which one and changes nothing. Changes are written into <code>menu.yaml</code> and
+        agents see them right away. Only people you allow-list can do this:
+      </p>
+      <pre>
+        <code>{`ORDERABLE_OWNER_TELEGRAM_IDS=123456789      # your Telegram user id
+ORDERABLE_OWNER_SLACK_IDS=U0123ABCD         # your Slack member id
+orderable stock "out of butter croissants"  # same thing, from a terminal`}</code>
+      </pre>
+
       <h2>Spending limits and safety</h2>
       <pre>
         <code>{`# orderable.config.yaml

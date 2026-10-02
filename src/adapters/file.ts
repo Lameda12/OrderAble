@@ -1,10 +1,11 @@
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { LineCounter, parseDocument } from "yaml";
 import { OrderableError } from "../errors.js";
 import { MenuFile, normalizeMenu } from "../menu-format.js";
 import type { Catalog } from "../schema.js";
 import { LocalCatalogAdapter } from "./local.js";
+import type { StockChange } from "./types.js";
 
 export interface MenuIssue {
   path: string;
@@ -88,6 +89,44 @@ export class FileAdapter extends LocalCatalogAdapter {
       const original = this[m].bind(this) as (...args: unknown[]) => Promise<unknown>;
       (this as unknown as Record<string, unknown>)[m] = (...args: unknown[]) => (reload(), original(...args));
     }
+  }
+
+  /**
+   * Write owner stock changes back into menu.yaml (comments and layout are kept), then reload,
+   * so the file stays the single source of truth.
+   */
+  override async updateStock(changes: StockChange[]) {
+    const abs = resolve(this.path);
+    const doc = parseDocument(readFileSync(abs, "utf8"));
+    const raw = doc.toJS() as {
+      locations: { id: string }[];
+      items: { id: string; locations?: string[]; stock_by_location?: Record<string, unknown> }[];
+      stock_updated_at?: string;
+    };
+    const allLocations = raw.locations.map((l) => l.id);
+    const value = (c: StockChange) => {
+      if (c.quantity == null) return c.status;
+      const node = doc.createNode({ status: c.status, quantity: c.quantity });
+      node.flow = true;
+      return node;
+    };
+
+    for (const itemId of new Set(changes.map((c) => c.item_id))) {
+      const idx = raw.items.findIndex((i) => i.id === itemId);
+      if (idx < 0) continue;
+      const item = raw.items[idx]!;
+      const mine = changes.filter((c) => c.item_id === itemId);
+      const offeredAt = item.locations ?? allLocations;
+      const same = mine.every((c) => c.status === mine[0]!.status && c.quantity === mine[0]!.quantity);
+      const everywhere = offeredAt.every((l) => mine.some((c) => c.location_id === l));
+      if (everywhere && same && !item.stock_by_location) doc.setIn(["items", idx, "stock"], value(mine[0]!));
+      else for (const c of mine) doc.setIn(["items", idx, "stock_by_location", c.location_id], value(c));
+    }
+    if (raw.stock_updated_at && raw.stock_updated_at !== "live") doc.set("stock_updated_at", this.now().toISOString());
+
+    writeFileSync(abs, doc.toString());
+    this.catalog = loadMenuFile(this.path);
+    this.mtimeMs = statSync(abs).mtimeMs;
   }
 
   private reloadIfChanged() {

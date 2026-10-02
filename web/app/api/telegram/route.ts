@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { chatAgent } from "@/lib/demo-server";
 import { TelegramApi, type TelegramUpdate, handleTelegramUpdate, verifyTelegramSecret } from "@/lib/orderable/channels/telegram";
+import { ownerIds } from "@/lib/orderable/stock-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
 
   const update = (await request.json()) as TelegramUpdate;
   // Answer Telegram right away; the agent keeps working after the response is sent.
-  after(() => handleTelegramUpdate(update, chatAgent(), new TelegramApi(token)));
+  after(() =>
+    handleTelegramUpdate(update, chatAgent(), new TelegramApi(token), { owners: ownerIds(process.env.ORDERABLE_OWNER_TELEGRAM_IDS) }),
+  );
   return Response.json({ ok: true });
 }

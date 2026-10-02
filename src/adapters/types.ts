@@ -89,4 +89,13 @@ export interface Adapter {
   placeOrder(req: AdapterOrderRequest): Promise<AdapterOrderResult>;
   getOrderStatus(externalId: string, order: Order): Promise<AdapterOrderStatus>;
   cancelOrder(externalId: string, reason: string, order: Order): Promise<{ cancelled: boolean; message?: string }>;
+  /** Optional: let the owner change stock (e.g. by text message). Adapters backed by a POS may omit it. */
+  updateStock?(changes: StockChange[]): Promise<void>;
+}
+
+export interface StockChange {
+  location_id: string;
+  item_id: string;
+  status: StockStatus;
+  quantity: number | null;
 }
