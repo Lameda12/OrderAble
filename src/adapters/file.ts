@@ -1,4 +1,4 @@
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { LineCounter, parseDocument } from "yaml";
 import { OrderableError } from "../errors.js";
@@ -73,6 +73,16 @@ export function loadMenuFile(path: string): Catalog {
   return result.catalog;
 }
 
+const emptyCatalog = (): Catalog => ({
+  businesses: [],
+  locations: [],
+  categories: [],
+  items: [],
+  stock: [],
+  stock_as_of: null,
+  stock_ttl_seconds: 900,
+});
+
 /** Serves a business from menu.yaml and hot-reloads it when the owner edits the file. */
 export class FileAdapter extends LocalCatalogAdapter {
   override readonly name = "file";
@@ -82,8 +92,10 @@ export class FileAdapter extends LocalCatalogAdapter {
     private readonly path: string,
     opts: { now?: () => Date } = {},
   ) {
-    super(loadMenuFile(path), opts);
-    this.mtimeMs = statSync(resolve(path)).mtimeMs;
+    // A brand-new owner may not have a menu yet; they create it through the owner tools.
+    const exists = existsSync(resolve(path));
+    super(exists ? loadMenuFile(path) : emptyCatalog(), opts);
+    this.mtimeMs = exists ? statSync(resolve(path)).mtimeMs : 0;
     const reload = () => this.reloadIfChanged();
     for (const m of ["listBusinesses", "listLocations", "getMenu", "getItem", "getAvailability", "quote"] as const) {
       const original = this[m].bind(this) as (...args: unknown[]) => Promise<unknown>;
@@ -127,6 +139,17 @@ export class FileAdapter extends LocalCatalogAdapter {
     writeFileSync(abs, doc.toString());
     this.catalog = loadMenuFile(this.path);
     this.mtimeMs = statSync(abs).mtimeMs;
+  }
+
+  /** Re-read menu.yaml now (after the owner tools write it). */
+  reload() {
+    this.catalog = loadMenuFile(this.path);
+    this.mtimeMs = statSync(resolve(this.path)).mtimeMs;
+  }
+
+  /** Where this adapter's menu lives, for the owner tools. */
+  get menuPath() {
+    return resolve(this.path);
   }
 
   private reloadIfChanged() {

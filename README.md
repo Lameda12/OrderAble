@@ -174,7 +174,19 @@ Requests are verified with Slack's signing secret (5-minute replay window), ackn
 
 Clients that only take a URL can put the token in the path: `https://<host>/mcp/<ORDERABLE_TOKEN>` for `orderable serve --http`, or `https://<vercel-host>/api/mcp/<token>` on the site. Treat that URL as a secret. The public demo is `https://orderable-mcp.vercel.app/api/mcp/orderable-demo` (fake businesses, DRY_RUN on).
 
-## For owners: menu.yaml
+## For owners: set up by talking to your assistant
+
+Owners don't need to touch YAML. Run Orderable in owner mode and connect it to Claude Desktop (or any MCP agent that can read images):
+
+```bash
+node dist/cli.js serve --stdio --owner      # owner tools on; customers never get them
+```
+
+Then say "Set up my bakery. Here's the menu" and attach a photo. The assistant reads it and calls five owner tools: `owner_get_setup`, `owner_save_business`, `owner_upsert_items`, `owner_remove_items` and `owner_update_stock`. Orderable validates everything with the same rules as `orderable validate` before saving, never writes an invalid menu, and tells the assistant which items still need allergen info so it asks instead of guessing. Over HTTP, a separate `ORDERABLE_OWNER_TOKEN` unlocks the owner tools; the normal `ORDERABLE_TOKEN` never does.
+
+Stock changes work in plain words from Telegram, Slack, the assistant, or the terminal: `orderable stock "out of butter croissants"`. Allow-list who may do it with `ORDERABLE_OWNER_TELEGRAM_IDS` and `ORDERABLE_OWNER_SLACK_IDS`.
+
+## Or by file: menu.yaml
 
 Owners aren't developers, so the menu file uses dollars, `"07:00-18:00"` hours, `"48h"` lead times and two short allergen lists. `orderable init` writes a starter file with examples for your business type: bakeries get lead-time cakes and a daily sell-out item, cafes get drink modifiers, restaurants get catering trays.
 
@@ -270,7 +282,7 @@ Guidelines:
 ## Development
 
 ```bash
-npm test            # vitest: 63 tests (schema, ordering, idempotency, policy, group orders, MCP surface, HTTP auth, file adapter, CLI rules, chat agent, Telegram, Slack)
+npm test            # vitest: 87 tests (schema, ordering, idempotency, policy, group orders, MCP surface, HTTP auth, file adapter, CLI rules, chat agent, Telegram, Slack)
 npm run typecheck
 npm run example     # regenerate examples/team-lunch.md from a real run
 npm run inspect     # MCP Inspector against the mock adapter

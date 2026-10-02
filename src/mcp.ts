@@ -4,6 +4,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { OrderableService } from "./service.js";
 import { registerTool } from "./tools/define.js";
 import { tools } from "./tools/index.js";
+import { ownerTools } from "./tools/owner.js";
 
 /*
  * Transport-agnostic MCP wiring with no native or filesystem dependencies, so it can run
@@ -19,10 +20,18 @@ Rules: money is integer minor units with a currency. Every price/availability ca
 Static info without tool calls: orderable://policies and orderable://menu/{location_id}.`;
 
 /** Build an MCP server with all nine tools and the two resources registered. */
-export function createMcpServer(service: OrderableService): McpServer {
-  const server = new McpServer({ name: "orderable", version: VERSION }, { instructions: INSTRUCTIONS });
+const OWNER_INSTRUCTIONS = `
+
+This connection belongs to the business owner, so the owner_* tools are available. Use them to set up and change the menu from whatever the owner gives you: a conversation, pasted text, or a photo of the menu. Start with owner_get_setup. Ask one question at a time. Never guess allergens, prices, hours or addresses.`;
+
+export function createMcpServer(service: OrderableService, opts: { owner?: boolean } = {}): McpServer {
+  const server = new McpServer(
+    { name: "orderable", version: VERSION },
+    { instructions: opts.owner ? INSTRUCTIONS + OWNER_INSTRUCTIONS : INSTRUCTIONS },
+  );
 
   for (const def of tools) registerTool(server, service, def as never);
+  if (opts.owner) for (const def of ownerTools) registerTool(server, service, def as never);
 
   server.registerResource(
     "menu",
@@ -89,15 +98,20 @@ export function requestAuthorized(request: Request, token: string) {
  * Stateless Streamable HTTP handler on web-standard Request/Response. Works in Node,
  * Vercel functions, Cloudflare Workers, Deno. Requires `Authorization: Bearer <token>`.
  */
-export function createHttpHandler(service: OrderableService, token: string) {
+/**
+ * The token decides the role: the customer token gets the ordering tools; the owner token
+ * (if set) also gets the owner_* setup tools.
+ */
+export function createHttpHandler(service: OrderableService, token: string, opts: { ownerToken?: string | undefined } = {}) {
   if (!token) throw new Error("HTTP transport requires a bearer token");
   return async (request: Request): Promise<Response> => {
-    if (!requestAuthorized(request, token))
+    const owner = !!opts.ownerToken && requestAuthorized(request, opts.ownerToken);
+    if (!owner && !requestAuthorized(request, token))
       return new Response(JSON.stringify({ error: "unauthorized", hint: "Send Authorization: Bearer <ORDERABLE_TOKEN>, or use the URL /mcp/<ORDERABLE_TOKEN>" }), {
         status: 401,
         headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="orderable"' },
       });
-    const server = createMcpServer(service);
+    const server = createMcpServer(service, { owner });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

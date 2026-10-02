@@ -9,7 +9,39 @@ export default function Owners() {
       <h1>For owners</h1>
       <p className="lead">One file describes your business. Three commands keep it honest.</p>
 
-      <h2>Create your menu</h2>
+      <h2>Set up by talking to your assistant</h2>
+      <p>
+        You don't need to write any files. Connect Orderable to Claude Desktop in owner mode, then tell Claude about your business the way you'd
+        tell a new employee. Paste your menu, or attach a photo of it.
+      </p>
+      <pre>
+        <code>{`{
+  "mcpServers": {
+    "orderable": {
+      "command": "node",
+      "args": ["/path/to/OrderAble/dist/cli.js", "serve", "--stdio", "--owner"],
+      "env": { "ORDERABLE_ADAPTER": "file", "ORDERABLE_MENU": "/path/to/menu.yaml" }
+    }
+  }
+}`}</code>
+      </pre>
+      <p>Then, in Claude:</p>
+      <pre>
+        <code>{`Set up my bakery on Orderable. We're Rosie's Bakeshop, 2500 Agricola St,
+Halifax. Open Tue to Fri 7 to 5, weekends 8 to 3, closed Mondays.
+Pickup only for now. Here's the menu: [photo]`}</code>
+      </pre>
+      <p>
+        Claude reads the menu and saves it through Orderable's owner tools. Orderable checks everything before saving, and tells Claude what's
+        still missing, so it asks you about things it can't see, like allergens, instead of guessing. Later, "out of croissants" or "raise the
+        latte to $5.50" works the same way.
+      </p>
+      <p>
+        Owner tools only appear in owner mode (<code>--owner</code>, or the separate <code>ORDERABLE_OWNER_TOKEN</code> over HTTP). Customers'
+        agents never see them.
+      </p>
+
+      <h2>Prefer a file?</h2>
       <pre>
         <code>orderable init</code>
       </pre>

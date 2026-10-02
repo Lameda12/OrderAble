@@ -29,6 +29,7 @@ Usage
   orderable doctor               Agent-readiness score out of 100, with the top 3 fixes
   orderable serve --stdio        Run the MCP server for Claude Desktop / Claude Code
   orderable serve --http         Run the MCP server over Streamable HTTP (needs ORDERABLE_TOKEN)
+  orderable serve --stdio --owner   Same, plus owner tools: set up the menu by talking to your AI assistant
   orderable stock "<message>"    Update stock in plain words, e.g. "out of croissants"
   orderable bot telegram         Telegram bot (long polling, no public URL needed)
   orderable bot slack            Slack app endpoint: /slack/events and /slack/commands
@@ -52,6 +53,7 @@ Options
 Environment
   DRY_RUN=false      Actually send orders to the merchant (default: true, record only)
   ORDERABLE_TOKEN    Bearer token required by --http (or use the URL /mcp/<token>)
+  ORDERABLE_OWNER_TOKEN   Second token for --http that also unlocks the owner tools
   ANTHROPIC_API_KEY  For the chat bots (Claude runs the conversation)
   TELEGRAM_BOT_TOKEN From @BotFather
   SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET   From your Slack app
@@ -74,6 +76,7 @@ const { values: flags, positionals } = parseArgs({
     json: { type: "boolean" },
     stdio: { type: "boolean" },
     http: { type: "boolean" },
+    owner: { type: "boolean" },
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "v" },
   },
@@ -211,9 +214,11 @@ async function serve() {
       token = randomBytes(24).toString("base64url");
       console.error(`${c.yellow("!")} ORDERABLE_TOKEN not set. Generated one for this run:\n  ${token}\n`);
     }
-    await runHttp(service, { port: cfg.http.port, host: cfg.http.host, token });
+    const ownerToken = process.env.ORDERABLE_OWNER_TOKEN || undefined;
+    if (ownerToken && ownerToken === token) throw new Error("ORDERABLE_OWNER_TOKEN must differ from ORDERABLE_TOKEN");
+    await runHttp(service, { port: cfg.http.port, host: cfg.http.host, token, ownerToken });
   } else {
-    await runStdio(service);
+    await runStdio(service, { owner: !!flags.owner });
   }
 }
 

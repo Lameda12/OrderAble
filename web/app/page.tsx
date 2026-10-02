@@ -13,8 +13,8 @@ const EARLY_ACCESS = (plan: string) =>
 const STEPS = [
   {
     n: "1",
-    title: "Describe your menu once",
-    body: "One file, or your POS. Prices, hours, what sells out, what has nuts in it. Run orderable doctor and it tells you what an agent would trip over.",
+    title: "Show your assistant the menu",
+    body: "Paste it into Claude, or send a photo. It sets up Orderable for you and asks about what it can't see, like allergens. Later, text \"out of croissants\" and it's done.",
   },
   {
     n: "2",

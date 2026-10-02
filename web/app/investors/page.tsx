@@ -8,17 +8,18 @@ export const metadata: Metadata = {
   description: "Where Orderable stands today, what it would do next, and how to help.",
 };
 
-const STATUS: [string, string, "done" | "zero" | "plan"][] = [
+const STATUS: [string, string, "done" | "zero" | "planned"][] = [
   ["MCP server: 9 tools, menu and policy resources, stdio and HTTP", "Shipped, MIT licensed", "done"],
-  ["Owner tools: setup wizard, menu checker, readiness score", "Shipped", "done"],
+  ["Owner command line: setup, menu checker, readiness score", "Shipped", "done"],
   ["Telegram and Slack ordering bots (Claude)", "Shipped, not yet run with real customers", "done"],
+  ["Menu setup by talking to an AI assistant", "Shipped, tested with an MCP client", "done"],
   ["Stock updates by text message", "Shipped", "done"],
-  ["Automated tests", "84 passing", "done"],
+  ["Automated tests", "87 passing", "done"],
   ["Restaurants live", "0", "zero"],
   ["Paying customers", "0", "zero"],
   ["Revenue", "$0", "zero"],
-  ["Hosted plans, API keys, billing", "Designed, not built", "plan"],
-  ["Courier delivery (Uber Direct first)", "Researched, not built", "plan"],
+  ["Hosted plans, API keys, billing", "Designed, not built", "planned"],
+  ["Courier delivery (Uber Direct first)", "Researched, not built", "planned"],
 ];
 
 export default function Investors() {

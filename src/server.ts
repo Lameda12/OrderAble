@@ -31,11 +31,11 @@ export function createService(config: OrderableConfig, opts: { adapter?: Adapter
   });
 }
 
-export async function runStdio(service: OrderableService) {
-  const server = createMcpServer(service);
+export async function runStdio(service: OrderableService, opts: { owner?: boolean } = {}) {
+  const server = createMcpServer(service, opts);
   await server.connect(new StdioServerTransport());
   // stdout belongs to the protocol; log to stderr.
-  console.error(`orderable ${VERSION} on stdio (adapter=${service.adapter.name}, dry_run=${service.config.dry_run})`);
+  console.error(`orderable ${VERSION} on stdio (adapter=${service.adapter.name}, dry_run=${service.config.dry_run}${opts.owner ? ", owner tools on" : ""})`);
 }
 
 export async function toWebRequest(req: IncomingMessage, origin: string): Promise<Request> {
@@ -65,8 +65,11 @@ export async function writeWebResponse(res: ServerResponse, response: Response) 
   res.end();
 }
 
-export async function runHttp(service: OrderableService, opts: { port: number; host: string; token: string }) {
-  const handle = createHttpHandler(service, opts.token);
+export async function runHttp(
+  service: OrderableService,
+  opts: { port: number; host: string; token: string; ownerToken?: string | undefined },
+) {
+  const handle = createHttpHandler(service, opts.token, { ownerToken: opts.ownerToken });
   const origin = `http://${opts.host}:${opts.port}`;
   const http = createHttpServer(async (req, res) => {
     try {
