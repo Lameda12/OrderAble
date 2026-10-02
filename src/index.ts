@@ -1,0 +1,15 @@
+export * from "./schema.js";
+export { OrderableError } from "./errors.js";
+export type { Adapter, AdapterOrderRequest, AdapterOrderResult, AdapterOrderStatus, Menu, PricingRequest, PricingResult, StockLevel } from "./adapters/types.js";
+export { LocalCatalogAdapter } from "./adapters/local.js";
+export { MockAdapter, mockCatalog } from "./adapters/mock.js";
+export { FileAdapter, parseMenuYaml } from "./adapters/file.js";
+export { OrderableService } from "./service.js";
+export { SqliteStore, type Store } from "./store.js";
+export { MemoryStore } from "./store-memory.js";
+export { loadConfig, defaultConfig, type OrderableConfig } from "./config.js";
+export { resolvePolicy, evaluatePolicy } from "./policy.js";
+export { computeTotals, priceLine, resolveModifiers } from "./pricing.js";
+export { createMcpServer, createHttpHandler, VERSION } from "./mcp.js";
+export { createService, createAdapter, runStdio, runHttp } from "./server.js";
+export { runTeamLunchDemo, type DemoStep } from "./demo.js";
