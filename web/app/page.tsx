@@ -49,7 +49,7 @@ const PLANS = [
     name: "Pro",
     price: "$0.25",
     unit: "per completed order · API",
-    points: ["Unlimited locations", "REST API and webhooks", "WhatsApp and iMessage, first"],
+    points: ["Everything in Free", "Unlimited locations", "Pay only when an order completes"],
     cta: "Get early access",
     href: EARLY_ACCESS("Pro"),
   },
@@ -167,13 +167,16 @@ export default function Page() {
       <section className="section" id="trust">
         <Reveal>
           <h2 className="headline md">
-            Agents don’t read banners.
+            Execution gets you picked.
             <br />
-            <span className="dim">They check facts.</span>
+            <span className="dim">Honesty keeps you picked.</span>
           </h2>
         </Reveal>
         <Reveal delay={1}>
-          <p className="lede">Is availability accurate. Does checkout work. Does it fit the budget. Orderable answers all three, in data a machine can verify.</p>
+          <p className="lede">
+            No brand. No banners. No pedigree. An agent asks three things: is the stock real, does checkout work, does it fit the budget.{" "}
+            <strong>Then it remembers who told the truth.</strong>
+          </p>
         </Reveal>
         <div className="pillars">
           <Reveal className="tile">

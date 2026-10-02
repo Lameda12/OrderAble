@@ -17,7 +17,7 @@ Built for B2B and office ordering first (team lunch, catering, recurring pantry 
 | Price | $0, MIT, forever | $0, up to 50 orders/month | $0.25 per completed order |
 | Runs on | Your machine or cloud | Orderable cloud | Orderable cloud |
 | MCP endpoint | Self-hosted | Hosted | Hosted |
-| Chat apps | Telegram, Slack (self-run bots) | Telegram, Slack, connected for you | All channels, WhatsApp and iMessage first |
+| Chat apps | Telegram, Slack (self-run bots) | Telegram, Slack, connected for you | Same, plus new channels as they ship |
 | Locations | Unlimited | 1 | Unlimited |
 
 No commission on any plan: customers pay the business directly. Hosted plans are in early access ([request it](https://github.com/Lameda12/OrderAble/issues/new?title=Early%20access&labels=early-access)).
