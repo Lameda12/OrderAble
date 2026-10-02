@@ -284,6 +284,7 @@ The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel), with docs a
 - **Recurring orders:** "every Friday, lunch for the team" with a standing spending policy
 - **Webhooks:** push order status to the agent instead of polling (and proactively to Telegram/Slack chats)
 - **WhatsApp and iMessage** (soon), then Microsoft Teams and SMS
+- **Courier delivery for agent orders** (flat fee per trip, no commission): Uber Direct, then DoorDash Drive in North America; Wolt Drive in Europe; GrabExpress in Southeast Asia
 - **Hosted Free and Pro plans:** managed MCP endpoint, connected chat apps, usage-based API
 - **Substitutions:** let `plan_group_order` propose swaps when an item sells out after quoting
 - **Multi-merchant group orders:** split one team order across two nearby locations

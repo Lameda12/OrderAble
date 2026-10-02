@@ -31,6 +31,12 @@ const CHANNELS: [string, boolean][] = [
   ["iMessage", false],
 ];
 
+const REGIONS: [string, string, string][] = [
+  ["North America", "Live now · Next up", "Pickup and the shop’s own delivery today. Uber Direct, then DoorDash Drive."],
+  ["Europe", "Soon", "Wolt Drive."],
+  ["Southeast Asia", "Later", "GrabExpress."],
+];
+
 const PLANS = [
   {
     name: "Open source",
@@ -107,13 +113,20 @@ export default function Page() {
       <section className="section statement">
         <Reveal>
           <h2 className="headline md">
-            Your next customer <span className="dim">isn’t a person.</span>
+            Still scrolling for lunch
+            <br />
+            <span className="dim">at 11:58?</span>
           </h2>
         </Reveal>
         <Reveal delay={1}>
           <p className="lede">
-            It’s an agent, ordering for one. The big aggregators already speak its language.{" "}
-            <strong>The bakery on the corner doesn’t.</strong> Until now.
+            Forty tiles of the same burrito. A promo you didn’t ask for. A fee you meet at checkout.{" "}
+            <strong>Or one sentence, and lunch for twelve arrives at noon.</strong>
+          </p>
+        </Reveal>
+        <Reveal delay={2}>
+          <p className="lede" style={{ fontSize: 19 }}>
+            Your agent doesn’t scroll. It checks what’s in stock, fits the budget, and asks before it orders.
           </p>
         </Reveal>
       </section>
@@ -352,6 +365,19 @@ export default function Page() {
           <CoverageMap />
         </Reveal>
         <Reveal delay={2}>
+          <div className="regions">
+            {REGIONS.map(([region, status, couriers]) => (
+              <div key={region}>
+                <p className="region-name">{region}</p>
+                <p className="region-status">{status}</p>
+                <p className="region-couriers">{couriers}</p>
+              </div>
+            ))}
+          </div>
+          <p className="fineprint" style={{ fontSize: 13 }}>
+            Couriers deliver orders placed through Orderable at a flat fee per trip, no commission. Courier integrations are in development; names are
+            trademarks of their owners and no affiliation is implied.
+          </p>
           <p className="fineprint">
             Open source runs wherever you do. <a className="textlink" href={EARLY_ACCESS("My city")}>Want your city next? ›</a>
           </p>
