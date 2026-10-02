@@ -112,6 +112,54 @@ Every response carrying prices or availability includes `as_of` and `ttl_seconds
 - **Allergens are tri-state** (`contains` / `may_contain` / `unknown`) for every major allergen. Missing data is `unknown`, never "safe". `plan_group_order` flags shared-kitchen risk (e.g. gluten-free by recipe, may contain gluten).
 - **HTTP needs a bearer token** (constant-time compare). stdio doesn't.
 
+## Chat apps: Telegram and Slack
+
+Customers and teams can order from inside the chat apps they already use. Orderable ships a Claude-powered ordering assistant (`src/agent.ts`) that calls the same nine MCP tools through a real MCP client, so every rule (quotes, policy caps, DRY_RUN, idempotency, honest allergens) applies in chat exactly as it does in Claude Desktop. It confirms the total before placing anything and asks for missing contact details instead of inventing them.
+
+| Surface | How it connects | Run it |
+| --- | --- | --- |
+| **Telegram** | Bot via @BotFather. DMs or groups. `/start`, `/reset` | `orderable bot telegram` (long polling, no public URL) or the `/api/telegram` webhook on Vercel |
+| **Slack** | Slack app. @mention it in a channel (answers in a thread), DM it, or `/order …` | `orderable bot slack` (HTTP) or `/api/slack/events` on Vercel |
+| **Claude in Slack, claude.ai, any MCP client** | Add Orderable as a remote MCP connector | `https://<host>/api/mcp/<ORDERABLE_TOKEN>` |
+
+All bots need `ANTHROPIC_API_KEY`. The agent uses `claude-opus-5-5` at `medium` effort with server-side refusal fallback enabled; override with `ORDERABLE_AGENT_MODEL` and `ORDERABLE_AGENT_EFFORT`. Conversation history is kept per chat (per thread in Slack channels) in memory, and starts fresh after 2 idle hours or when it gets long.
+
+### Telegram
+
+1. Message [@BotFather](https://t.me/BotFather), send `/newbot`, copy the token.
+2. Run it locally (polling, nothing to expose):
+
+   ```bash
+   TELEGRAM_BOT_TOKEN=123:abc ANTHROPIC_API_KEY=sk-ant-... node dist/cli.js bot telegram --adapter mock
+   ```
+
+3. Or on Vercel: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` (any random string) and `ANTHROPIC_API_KEY` on the project, then register the webhook once:
+
+   ```bash
+   curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+     -d url=https://orderable-mcp.vercel.app/api/telegram \
+     -d secret_token=$TELEGRAM_WEBHOOK_SECRET
+   ```
+
+### Slack
+
+1. Get a manifest with your URLs filled in: `node dist/cli.js bot slack-manifest https://your-host` (self-hosted) or open `https://<vercel-host>/api/slack/manifest`.
+2. [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From a manifest → paste it → Install to Workspace.
+3. Copy the **Bot User OAuth Token** (`xoxb-…`) and **Signing Secret**, then either:
+
+   ```bash
+   SLACK_BOT_TOKEN=xoxb-... SLACK_SIGNING_SECRET=... ANTHROPIC_API_KEY=sk-ant-... \
+     node dist/cli.js bot slack --port 3334   # expose /slack/events and /slack/commands publicly
+   ```
+
+   or set the same three variables on the Vercel project (endpoints `/api/slack/events` and `/api/slack/commands`).
+
+Requests are verified with Slack's signing secret (5-minute replay window), acknowledged inside Slack's 3-second limit, and deduplicated by event id. Scopes: `app_mentions:read`, `chat:write`, `commands`, `im:history`, `reactions:write`, `users:read` (used to pre-fill the customer's name).
+
+### As an MCP connector (Claude in Slack, claude.ai, Cursor, …)
+
+Clients that only take a URL can put the token in the path: `https://<host>/mcp/<ORDERABLE_TOKEN>` for `orderable serve --http`, or `https://<vercel-host>/api/mcp/<token>` on the site. Treat that URL as a secret. The public demo is `https://orderable-mcp.vercel.app/api/mcp/orderable-demo` (fake businesses, DRY_RUN on).
+
 ## For owners: menu.yaml
 
 Owners aren't developers, so the menu file uses dollars, `"07:00-18:00"` hours, `"48h"` lead times and two short allergen lists. `orderable init` writes a starter file with examples for your business type: bakeries get lead-time cakes and a daily sell-out item, cafes get drink modifiers, restaurants get catering trays.
@@ -171,7 +219,9 @@ src/
   store.ts         SQLite persistence (better-sqlite3); store-memory.ts for serverless
   lint.ts          `validate` rules
   doctor.ts        `doctor` scoring
-  cli.ts           orderable init | validate | doctor | serve
+  agent.ts         Claude chat agent that orders through the MCP tools
+  channels/        telegram.ts (webhook + polling), slack.ts (events, /order, manifest)
+  cli.ts           orderable init | validate | doctor | serve | bot
 ```
 
 ## Writing an adapter
@@ -206,7 +256,7 @@ Guidelines:
 ## Development
 
 ```bash
-npm test            # vitest: 50 tests (schema, ordering, idempotency, policy, group orders, MCP surface, HTTP auth, file adapter, CLI rules)
+npm test            # vitest: 63 tests (schema, ordering, idempotency, policy, group orders, MCP surface, HTTP auth, file adapter, CLI rules, chat agent, Telegram, Slack)
 npm run typecheck
 npm run example     # regenerate examples/team-lunch.md from a real run
 npm run inspect     # MCP Inspector against the mock adapter
@@ -218,7 +268,8 @@ The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel). It runs the
 
 - **v0.2 adapters:** Square (finish orders/inventory), Toast, Clover, Shopify, Lightspeed
 - **Recurring orders:** "every Friday, lunch for the team" with a standing spending policy
-- **Webhooks:** push order status to the agent instead of polling
+- **Webhooks:** push order status to the agent instead of polling (and proactively to Telegram/Slack chats)
+- **More chat surfaces:** WhatsApp Business, Microsoft Teams, SMS
 - **Substitutions:** let `plan_group_order` propose swaps when an item sells out after quoting
 - **Multi-merchant group orders:** split one team order across two nearby locations
 - **Owner dashboard:** a tiny web UI for updating stock from a phone

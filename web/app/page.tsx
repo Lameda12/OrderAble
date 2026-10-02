@@ -29,6 +29,7 @@ export default function Page() {
           <a href="#trust">Trust</a>
           <a href="#tools">Tools</a>
           <a href="#owners">Owners</a>
+          <a href="#channels">Chat apps</a>
           <a href="#try">Try it</a>
           <a href={GITHUB} className="nav-keep">GitHub</a>
         </div>
@@ -260,6 +261,64 @@ export default function Page() {
               <p>{desc}</p>
             </Reveal>
           ))}
+        </div>
+      </section>
+
+      {/* Channels */}
+      <section className="section" id="channels">
+        <Reveal>
+          <p className="eyebrow crust">Everywhere your team talks</p>
+        </Reveal>
+        <Reveal delay={1}>
+          <h2 className="headline md">
+            Order from the chat
+            <br />
+            <span className="dim">you already have open.</span>
+          </h2>
+        </Reveal>
+        <Reveal delay={2}>
+          <p className="lede">
+            Same nine tools, same rules, same safety checks. <strong>Telegram, Slack, or any MCP client.</strong>
+          </p>
+        </Reveal>
+        <div className="pillars">
+          <Reveal className="tile">
+            <h3>Telegram.</h3>
+            <p>
+              A bot from <code>@BotFather</code> and one command. <strong>No server needed:</strong> <code>orderable bot telegram</code> long-polls
+              from the laptop behind the counter.
+            </p>
+            <div className="specimen">
+              <div><span className="k">you</span> 3 oat lattes, 2pm pickup</div>
+              <div><span className="k">bot</span> $20.52 incl. tax. Place it?</div>
+              <div><span className="k">you</span> <span className="good">yes</span></div>
+            </div>
+          </Reveal>
+          <Reveal className="tile" delay={1}>
+            <h3>Slack.</h3>
+            <p>
+              @mention it in <code>#lunch</code> and it answers in the thread. DM it, or type <code>/order</code>. <strong>One manifest</strong>, paste and
+              install.
+            </p>
+            <div className="specimen">
+              <div><span className="k">#lunch</span> lunch for 12, 3 veg, 1 GF</div>
+              <div><span className="k">budget</span> $20 a head</div>
+              <div><span className="k">thread</span> <span className="good">everyone covered</span></div>
+              <div><span className="k">total</span> $227.76</div>
+            </div>
+          </Reveal>
+          <Reveal className="tile" delay={2}>
+            <h3>Any MCP client.</h3>
+            <p>
+              Claude Desktop, Claude Code, Claude in Slack, Cursor. <strong>Paste one URL</strong> and the agent sees your whole menu.
+            </p>
+            <div className="specimen">
+              <div><span className="k">url</span> /api/mcp/&lt;token&gt;</div>
+              <div><span className="k">tools</span> 9</div>
+              <div><span className="k">resources</span> menu, policies</div>
+              <div><span className="k">dry_run</span> <span className="meh">true</span></div>
+            </div>
+          </Reveal>
         </div>
       </section>
 

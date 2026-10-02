@@ -38,7 +38,7 @@ export async function runStdio(service: OrderableService) {
   console.error(`orderable ${VERSION} on stdio (adapter=${service.adapter.name}, dry_run=${service.config.dry_run})`);
 }
 
-async function toWebRequest(req: IncomingMessage, origin: string): Promise<Request> {
+export async function toWebRequest(req: IncomingMessage, origin: string): Promise<Request> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   const headers = new Headers();
@@ -51,7 +51,7 @@ async function toWebRequest(req: IncomingMessage, origin: string): Promise<Reque
   });
 }
 
-async function writeWebResponse(res: ServerResponse, response: Response) {
+export async function writeWebResponse(res: ServerResponse, response: Response) {
   res.statusCode = response.status;
   response.headers.forEach((v, k) => res.setHeader(k, v));
   if (response.body) {
@@ -76,7 +76,7 @@ export async function runHttp(service: OrderableService, opts: { port: number; h
         res.end(JSON.stringify({ ok: true, version: VERSION, adapter: service.adapter.name, dry_run: service.config.dry_run }));
         return;
       }
-      if (path !== "/mcp") {
+      if (path !== "/mcp" && !path.startsWith("/mcp/")) {
         res.statusCode = 404;
         res.end("Not found. MCP endpoint is /mcp");
         return;

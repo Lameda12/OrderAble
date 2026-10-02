@@ -9,6 +9,10 @@ import { runDoctor } from "./doctor.js";
 import { OrderableError } from "./errors.js";
 import { lintMenu } from "./lint.js";
 import { BusinessType } from "./schema.js";
+import { createServer as createNodeServer } from "node:http";
+import { OrderableAgent } from "./agent.js";
+import { handleSlackRequest, slackManifest } from "./channels/slack.js";
+import { TelegramApi, runTelegramPolling } from "./channels/telegram.js";
 import { VERSION, createAdapter, createService, runHttp, runStdio } from "./server.js";
 import { type InitAnswers, configTemplate, menuTemplate } from "./templates.js";
 
@@ -24,6 +28,9 @@ Usage
   orderable doctor               Agent-readiness score out of 100, with the top 3 fixes
   orderable serve --stdio        Run the MCP server for Claude Desktop / Claude Code
   orderable serve --http         Run the MCP server over Streamable HTTP (needs ORDERABLE_TOKEN)
+  orderable bot telegram         Telegram bot (long polling, no public URL needed)
+  orderable bot slack            Slack app endpoint: /slack/events and /slack/commands
+  orderable bot slack-manifest <public-url>   Print a Slack app manifest
 
 Options
   --config <path>    Config file (default ./orderable.config.yaml)
@@ -42,7 +49,10 @@ Options
 
 Environment
   DRY_RUN=false      Actually send orders to the merchant (default: true, record only)
-  ORDERABLE_TOKEN    Bearer token required by --http
+  ORDERABLE_TOKEN    Bearer token required by --http (or use the URL /mcp/<token>)
+  ANTHROPIC_API_KEY  For the chat bots (Claude runs the conversation)
+  TELEGRAM_BOT_TOKEN From @BotFather
+  SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET   From your Slack app
 `;
 
 const { values: flags, positionals } = parseArgs({
@@ -204,6 +214,51 @@ async function serve() {
   }
 }
 
+async function bot() {
+  const kind = positionals[1];
+  if (kind === "slack-manifest") {
+    const base = (positionals[2] ?? "https://your-host.example.com").replace(/\/$/, "");
+    console.log(JSON.stringify(slackManifest(base), null, 2));
+    return;
+  }
+  const cfg = config();
+  const agent = new OrderableAgent({ service: createService(cfg) });
+  if (kind === "telegram") {
+    const ac = new AbortController();
+    process.on("SIGINT", () => ac.abort());
+    await runTelegramPolling(agent, new TelegramApi(process.env.TELEGRAM_BOT_TOKEN ?? ""), ac.signal);
+    return;
+  }
+  if (kind === "slack") {
+    const botToken = process.env.SLACK_BOT_TOKEN ?? "";
+    const signingSecret = process.env.SLACK_SIGNING_SECRET ?? "";
+    if (!botToken || !signingSecret) throw new Error("Set SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET");
+    const port = Number(flags.port ?? 3334);
+    const host = flags.host ?? "0.0.0.0";
+    createNodeServer(async (req, res) => {
+      const path = new URL(req.url ?? "/", "http://x").pathname;
+      if (req.method !== "POST" || !["/slack/events", "/slack/commands"].includes(path)) {
+        res.statusCode = 404;
+        return res.end("Slack endpoints: POST /slack/events, POST /slack/commands");
+      }
+      const chunks: Buffer[] = [];
+      for await (const ch of req) chunks.push(ch as Buffer);
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers.set(k, v);
+      const result = handleSlackRequest(Buffer.concat(chunks).toString("utf8"), headers, { agent, botToken, signingSecret });
+      res.statusCode = result.status;
+      res.setHeader("content-type", result.contentType);
+      res.end(result.body);
+      result.background?.().catch((e) => console.error("slack background job failed", e));
+    }).listen(port, host, () =>
+      console.error(`Slack endpoints on http://${host}:${port}/slack/events and /slack/commands (adapter=${cfg.adapter}, dry_run=${cfg.dry_run})`),
+    );
+    return;
+  }
+  console.error("Usage: orderable bot telegram | slack | slack-manifest <public-url>");
+  process.exit(2);
+}
+
 async function main() {
   if (flags.version) return console.log(VERSION);
   const cmd = positionals[0];
@@ -217,6 +272,8 @@ async function main() {
       return doctor();
     case "serve":
       return serve();
+    case "bot":
+      return bot();
     default:
       console.error(`Unknown command "${cmd}".\n\n${HELP}`);
       process.exit(2);

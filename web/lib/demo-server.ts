@@ -1,3 +1,4 @@
+import { OrderableAgent } from "./orderable/agent";
 import { MockAdapter } from "./orderable/adapters/mock";
 import { defaultConfig } from "./orderable/config";
 import { createHttpHandler } from "./orderable/mcp";
@@ -27,3 +28,10 @@ export function demoService() {
 // One warm instance keeps quotes between calls; a cold start begins fresh (it's a demo).
 const g = globalThis as unknown as { __orderable?: (req: Request) => Promise<Response> };
 export const mcpHandler = () => (g.__orderable ??= createHttpHandler(demoService(), DEMO_TOKEN));
+
+// ---------------------------------------------------------------- chat bots
+
+const bots = globalThis as unknown as { __orderableAgent?: OrderableAgent };
+
+/** Claude-powered agent shared by the Telegram and Slack webhooks. Needs ANTHROPIC_API_KEY. */
+export const chatAgent = () => (bots.__orderableAgent ??= new OrderableAgent({ service: demoService() }));

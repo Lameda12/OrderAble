@@ -67,12 +67,22 @@ export function createMcpServer(service: OrderableService): McpServer {
   return server;
 }
 
-function tokenMatches(header: string | null, token: string) {
-  const m = /^Bearer\s+(.+)$/i.exec(header ?? "");
-  if (!m) return false;
-  const a = Buffer.from(m[1]!.trim());
+function safeEqual(given: string, token: string) {
+  const a = Buffer.from(given);
   const b = Buffer.from(token);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Accepts `Authorization: Bearer <token>`, or the token as the last path segment
+ * (`/mcp/<token>`) for MCP clients that can only be given a URL, such as connector UIs.
+ * Treat such URLs as secrets.
+ */
+export function requestAuthorized(request: Request, token: string) {
+  const bearer = /^Bearer\s+(.+)$/i.exec(request.headers.get("authorization") ?? "");
+  if (bearer && safeEqual(bearer[1]!.trim(), token)) return true;
+  const inPath = /\/mcp\/([^/?#]+)\/?$/.exec(new URL(request.url).pathname);
+  return !!inPath && safeEqual(decodeURIComponent(inPath[1]!), token);
 }
 
 /**
@@ -82,8 +92,8 @@ function tokenMatches(header: string | null, token: string) {
 export function createHttpHandler(service: OrderableService, token: string) {
   if (!token) throw new Error("HTTP transport requires a bearer token");
   return async (request: Request): Promise<Response> => {
-    if (!tokenMatches(request.headers.get("authorization"), token))
-      return new Response(JSON.stringify({ error: "unauthorized", hint: "Send Authorization: Bearer <ORDERABLE_TOKEN>" }), {
+    if (!requestAuthorized(request, token))
+      return new Response(JSON.stringify({ error: "unauthorized", hint: "Send Authorization: Bearer <ORDERABLE_TOKEN>, or use the URL /mcp/<ORDERABLE_TOKEN>" }), {
         status: 401,
         headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="orderable"' },
       });
