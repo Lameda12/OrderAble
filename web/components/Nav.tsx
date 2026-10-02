@@ -14,8 +14,8 @@ export function Nav() {
         </a>
         <div className="nav-links">
           <a href="/#demo" className="nav-keep">Demo</a>
-          <a href="/#channels">Chat apps</a>
-          <a href="/#plans">Plans</a>
+          <a href="/#restaurants">For restaurants</a>
+          <a href="/#plans">Pricing</a>
           <a href="/docs" className="nav-keep">Docs</a>
           <a href={SITE.github} className="nav-keep">GitHub</a>
         </div>

@@ -1,7 +1,7 @@
 import { SITE } from "@/lib/site";
 
 const COLUMNS: [string, [string, string][]][] = [
-  ["Product", [["Live demo", "/#demo"], ["Plans", "/#plans"], ["Chat apps", "/#channels"], ["Try the endpoint", "/#try"]]],
+  ["Product", [["Live demo", "/#demo"], ["For restaurants", "/#restaurants"], ["Pricing", "/#plans"], ["Try the endpoint", "/docs/connect"]]],
   ["Docs", [["Quickstart", "/docs"], ["Connect a client", "/docs/connect"], ["Tool reference", "/docs/tools"], ["For owners", "/docs/owners"]]],
   ["Open source", [["GitHub", SITE.github], ["MIT license", `${SITE.github}/blob/main/LICENSE`], ["Report an issue", `${SITE.github}/issues/new`]]],
   ["Legal", [["Terms", "/terms"], ["Privacy", "/privacy"], ["Refunds", "/refunds"], ["Cookies", "/cookies"], ["Accessibility", "/accessibility"], ["Contact", "/contact"]]],

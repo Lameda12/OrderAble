@@ -104,18 +104,18 @@ export function LiveDemo() {
           </div>
           <div className="title">
             <span className="live-dot" />
-            Agent ↔ Orderable MCP · live
+            #lunch
           </div>
         </div>
         <div className="convo" ref={scroller} style={{ maxHeight: 640, overflowY: "auto" }} aria-live="polite" tabIndex={0}>
           {state === "idle" || state === "loading" || state === "error" ? (
             <div className="demo-start">
-              <div className="prompt">“{PROMPT}”</div>
+              <div className="prompt">"{PROMPT}"</div>
               <button className="pill crust" onClick={run} disabled={state === "loading"}>
-                {state === "loading" ? "Connecting…" : "▶  Run it live"}
+                {state === "loading" ? "Connecting…" : "Run it"}
               </button>
               <div style={{ fontSize: 13 }}>
-                Real MCP client, real Orderable server, seeded Halifax cafe. Nothing is pre-recorded.
+                Runs against a real Orderable server with a demo cafe in Halifax. Nothing is pre-recorded.
               </div>
               {state === "error" && <div style={{ color: "var(--err)", fontSize: 14 }}>Couldn’t reach the demo server: {error}</div>}
             </div>
@@ -167,7 +167,7 @@ export function LiveDemo() {
                         </span>
                       ))}
                       <span className="chip">✓ {plan.coverage?.people_with_a_main} fed</span>
-                      {replay?.idempotent_replay && <span className="chip neutral">Retry → same order</span>}
+                      {replay?.idempotent_replay && <span className="chip neutral">Retried, no duplicate</span>}
                       {order?.dry_run && <span className="chip warn">DRY_RUN · not sent to kitchen</span>}
                     </div>
                   </div>
@@ -201,7 +201,7 @@ export function LiveDemo() {
         <span>
           {state === "done"
             ? `${calls} tool calls · ${totalMs} ms of server time · order ${order?.order_id}`
-            : "Tap any tool call to see the exact JSON the agent received."}
+            : "Open any tool call to see the JSON the agent got back."}
         </span>
         {state === "done" && (
           <button className="pill ghost" style={{ padding: "8px 16px", fontSize: 14 }} onClick={run}>

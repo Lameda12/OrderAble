@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Console } from "@/components/Console";
 import { DocNext } from "@/components/DocNext";
 import { SITE } from "@/lib/site";
 
@@ -60,6 +61,10 @@ claude mcp add --transport http orderable http://127.0.0.1:3333/mcp \\
       <p>
         Or the URL form: <code>{SITE.url}/api/mcp/orderable-demo</code>. Fictional businesses, DRY_RUN on.
       </p>
+
+      <h2>Call a tool from here</h2>
+      <p>This sends real requests to the demo endpoint.</p>
+      <Console />
 
       <h2>Environment</h2>
       <table>
