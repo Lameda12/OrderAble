@@ -107,7 +107,7 @@ export function LiveDemo() {
             Agent ↔ Orderable MCP · live
           </div>
         </div>
-        <div className="convo" ref={scroller} style={{ maxHeight: 640, overflowY: "auto" }}>
+        <div className="convo" ref={scroller} style={{ maxHeight: 640, overflowY: "auto" }} aria-live="polite" tabIndex={0}>
           {state === "idle" || state === "loading" || state === "error" ? (
             <div className="demo-start">
               <div className="prompt">“{PROMPT}”</div>

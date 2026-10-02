@@ -6,7 +6,7 @@ Ordering is moving from screens to tool calls. DoorDash already ships an MCP ser
 
 Built for B2B and office ordering first (team lunch, catering, recurring pantry orders), and for people ordering through their own agent.
 
-**Live demo:** [orderable-mcp.vercel.app](https://orderable-mcp.vercel.app) · **Transcript:** [examples/team-lunch.md](examples/team-lunch.md)
+**Live demo:** [orderable-mcp.vercel.app](https://orderable-mcp.vercel.app) · **Docs:** [orderable-mcp.vercel.app/docs](https://orderable-mcp.vercel.app/docs) · **Transcript:** [examples/team-lunch.md](examples/team-lunch.md)
 
 ---
 
@@ -276,7 +276,7 @@ npm run example     # regenerate examples/team-lunch.md from a real run
 npm run inspect     # MCP Inspector against the mock adapter
 ```
 
-The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel). It runs the real server in a serverless function: `/api/mcp` is a live Streamable HTTP endpoint backed by the mock adapter (demo token is printed on the site) and `/api/demo` runs the team-lunch scenario end to end.
+The demo site lives in [`web/`](web/) (Next.js, deployed on Vercel), with docs at `/docs` (the tool reference is generated from the server's schemas) and legal pages at `/terms`, `/privacy`, `/refunds`, `/cookies`, `/accessibility` and `/contact`. Business details for those pages are in `web/lib/site.ts`. It runs the real server in a serverless function: `/api/mcp` is a live Streamable HTTP endpoint backed by the mock adapter (demo token is printed on the site) and `/api/demo` runs the team-lunch scenario end to end.
 
 ## Roadmap
 

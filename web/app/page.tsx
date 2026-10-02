@@ -1,4 +1,6 @@
 import { Console } from "@/components/Console";
+import { Footer } from "@/components/Footer";
+import { Nav } from "@/components/Nav";
 import { LiveDemo } from "@/components/LiveDemo";
 import { Reveal } from "@/components/Reveal";
 
@@ -57,23 +59,8 @@ const PLANS = [
 
 export default function Page() {
   return (
-    <main>
-      <nav className="nav">
-        <a href="#top" className="wordmark">
-          <i aria-hidden />
-          Orderable
-        </a>
-        <div className="nav-links">
-          <a href="#demo" className="nav-keep">Demo</a>
-          <a href="#trust">Trust</a>
-          <a href="#tools">Tools</a>
-          <a href="#owners">Owners</a>
-          <a href="#channels">Chat apps</a>
-          <a href="#plans">Plans</a>
-          <a href="#try">Try it</a>
-          <a href={GITHUB} className="nav-keep">GitHub</a>
-        </div>
-      </nav>
+    <main id="content">
+      <Nav />
 
       {/* Hero */}
       <section className="section hero" id="top">
@@ -183,7 +170,7 @@ export default function Page() {
             <h3>Timestamped.</h3>
             <p>
               Every price and every stock count carries <code>as_of</code> and <code>ttl_seconds</code>.{" "}
-              <strong>Stale data is the number one reason an agent drops a merchant.</strong> Yours never goes stale silently.
+              <strong>An agent can tell when your data is out of date.</strong> Yours never goes stale silently.
             </p>
             <div className="specimen">
               <div><span className="k">status</span> <span className="meh">"low"</span></div>
@@ -413,12 +400,7 @@ export default function Page() {
         </Reveal>
       </section>
 
-      <footer>
-        <span>Orderable · open source · MIT · Designed in Halifax, Nova Scotia.</span>
-        <span>
-          Crumb &amp; Co and Northline Coffee are fictional. <a href={GITHUB}>Source</a>
-        </span>
-      </footer>
+      <Footer />
     </main>
   );
 }
