@@ -1,4 +1,6 @@
 import { Console } from "@/components/Console";
+import { Proof } from "@/components/Proof";
+import { CoverageMap } from "@/components/CoverageMap";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 import { LiveDemo } from "@/components/LiveDemo";
@@ -336,6 +338,27 @@ export default function Page() {
           <Console />
         </Reveal>
       </section>
+
+      {/* Coverage */}
+      <section className="section" id="coverage">
+        <Reveal>
+          <h2 className="headline md">
+            Live in Halifax.
+            <br />
+            <span className="dim">Ready for anywhere.</span>
+          </h2>
+        </Reveal>
+        <Reveal delay={1}>
+          <CoverageMap />
+        </Reveal>
+        <Reveal delay={2}>
+          <p className="fineprint">
+            Open source runs wherever you do. <a className="textlink" href={EARLY_ACCESS("My city")}>Want your city next? ›</a>
+          </p>
+        </Reveal>
+      </section>
+
+      <Proof />
 
       {/* Plans */}
       <section className="section" id="plans">
