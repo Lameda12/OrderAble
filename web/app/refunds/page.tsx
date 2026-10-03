@@ -23,7 +23,7 @@ export default function Refunds() {
 
       <h2>Paid hosted plans, when they launch</h2>
       <ul>
-        <li>Usage is billed per completed order. Orders that are cancelled, or recorded under DRY_RUN, are not billed.</li>
+        <li>Plans are billed monthly. Only completed orders count toward a plan's included orders or overage; cancelled and test-mode orders never do.</li>
         <li>You can cancel any time. Billing stops at cancellation; there are no cancellation fees.</li>
         <li>
           If we bill you in error, or for an order that didn't complete, email {SITE.contactEmail} within 30 days of the statement and we will

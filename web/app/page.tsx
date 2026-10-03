@@ -39,14 +39,14 @@ const PLANS = [
     name: "Open source",
     price: "$0",
     unit: "MIT license, self-hosted",
-    points: ["Everything in this repo", "Run it on any machine"],
+    points: ["Everything in this repo", "Unlimited orders and locations", "Run it on any machine"],
     cta: "Get the code",
     href: GITHUB,
   },
   {
     name: "Hosted",
     price: "$0",
-    unit: "up to 50 orders a month",
+    unit: "50 orders a month",
     points: ["We run the server", "Telegram and Slack set up for you", "One location"],
     cta: "Request access",
     href: EARLY_ACCESS("Hosted"),
@@ -54,12 +54,22 @@ const PLANS = [
   },
   {
     name: "Pro",
-    price: "$0.25",
-    unit: "per completed order",
-    points: ["Unlimited locations", "Cancelled orders are free"],
+    price: "$29",
+    unit: "a month, 1,000 orders included",
+    points: ["Up to 3 locations", "$0.05 per order after 1,000", "Cancelled orders are free"],
     cta: "Request access",
     href: EARLY_ACCESS("Pro"),
   },
+];
+
+const FAQ: [string, string][] = [
+  ["What counts as an order?", "A completed order. Cancelled orders and test-mode orders don't count."],
+  ["Do you take a commission?", "No. Customers pay you directly, and the price above is all we charge."],
+  [
+    "What happens if I go over my limit?",
+    "Nothing breaks. Orders keep going through for the rest of the month, and we'll ask you to move up a plan.",
+  ],
+  ["Can I leave and take my menu with me?", "Yes. Export your menu and orders any time, or run the open-source version yourself."],
 ];
 
 export default function Page() {
@@ -174,7 +184,23 @@ export default function Page() {
           ))}
         </div>
         <Reveal>
-          <p className="fineprint">Hosted plans are in early access. Customers pay the restaurant directly, and we never see card numbers.</p>
+          <p className="fineprint">
+            More than 3 locations, or want it on your own servers? <a href={EARLY_ACCESS("Groups")}>Talk to us</a>.
+          </p>
+        </Reveal>
+        <dl className="faq">
+          {FAQ.map(([q, a]) => (
+            <Reveal key={q} className="faq-item">
+              <dt>{q}</dt>
+              <dd>{a}</dd>
+            </Reveal>
+          ))}
+        </dl>
+        <Reveal>
+          <p className="fineprint small">
+            Hosted plans are in early access and these are starting prices; nobody has paid yet. Customers pay the restaurant directly, and we never
+            see card numbers.
+          </p>
         </Reveal>
       </section>
 

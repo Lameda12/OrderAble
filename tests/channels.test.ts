@@ -4,7 +4,7 @@ import { OrderableAgent, chunkText } from "../src/agent.js";
 import { handleSlackRequest, slackManifest, verifySlackSignature } from "../src/channels/slack.js";
 import { TelegramApi, handleTelegramUpdate, verifyTelegramSecret } from "../src/channels/telegram.js";
 import { createHttpHandler } from "../src/mcp.js";
-import { setup } from "./helpers.js";
+import { customer, setup } from "./helpers.js";
 
 type Block = Record<string, unknown>;
 
@@ -239,5 +239,40 @@ describe("MCP over a URL-only connector", () => {
     expect((await ok.json()).result.tools).toHaveLength(9);
     const bad = await handle(new Request("http://x/api/mcp/tok_999", { method: "POST", headers, body }));
     expect(bad.status).toBe(401);
+  });
+});
+
+describe("order usage", () => {
+  it("reports the Claude tokens each new order took, once, and starts counting again", async () => {
+    const { service } = setup();
+    const quote = await service.quoteOrder({
+      location_id: "crumb-quinpool",
+      lines: [{ item_id: "crumb-morning-bun", quantity: 2, modifiers: [] }],
+      fulfillment: "pickup",
+    });
+    const place = { quote_id: quote.quote_id, idempotency_key: "chat-usage-01", customer, confirm: true };
+    const usage = (input: number, output: number) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: 100, cache_creation_input_tokens: 0 });
+    const fake = fakeClaude([
+      { stop_reason: "end_turn", content: [text("That's $8.50 for two. Place it?")], usage: usage(1000, 50) } as never,
+      { stop_reason: "tool_use", content: [toolUse("t1", "place_order", place)], usage: usage(1200, 80) } as never,
+      { stop_reason: "tool_use", content: [toolUse("t2", "place_order", place)], usage: usage(1300, 60) } as never,
+      { stop_reason: "end_turn", content: [text("Ordered.")], usage: usage(1400, 40) } as never,
+    ]);
+    const reports: unknown[] = [];
+    const agent = new OrderableAgent({ service, client: fake.client, onOrderUsage: (u) => reports.push(u) });
+
+    await agent.reply("c9", "two morning buns at Quinpool", { channel: "slack" });
+    await agent.reply("c9", "yes", { channel: "slack" });
+
+    // The retry in round two is an idempotent replay, so only one order is reported.
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      conversation_id: "c9",
+      dry_run: true,
+      requests: 2,
+      input_tokens: 2200,
+      output_tokens: 130,
+      cache_read_input_tokens: 200,
+    });
   });
 });

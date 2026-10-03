@@ -1213,6 +1213,38 @@ a {
   font-size: 17px;
 }
 
+.fineprint a {
+  color: var(--link);
+}
+
+.faq {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 48px;
+  max-width: 900px;
+  margin: 64px auto 0;
+  text-align: left;
+}
+
+.faq dt {
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.faq dd {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .faq {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+
 /* ---------- focus ---------- */
 
 :focus-visible {

@@ -74,8 +74,9 @@ export default function Investors() {
           <h2>How it makes money</h2>
           <p>
             The software stays free and open source. The business is the hosted version: we run the server, connect the chat apps and couriers, and
-            charge the restaurant $0.25 per completed order after a free tier. Cancelled orders cost nothing. These prices are a starting point,
-            not something customers have paid yet.
+            charge the restaurant a flat $29 a month after a free tier of 50 orders, with 1,000 orders included and $0.05 per order after that.
+            Cancelled orders cost nothing. A flat price is easy to compare with delivery-app commissions. These prices are a starting point, not
+            something customers have paid yet, and we're measuring what each order costs us to run before we fix them.
           </p>
 
           <h2>The next six months</h2>

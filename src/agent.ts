@@ -26,7 +26,26 @@ export interface AgentOptions {
   idleResetMinutes?: number;
   /** Conversations longer than this many messages start fresh (keeps cost bounded). */
   maxMessages?: number;
+  /** Called once per new order with the Claude tokens the conversation used to get there. Defaults to one JSON log line. */
+  onOrderUsage?: (usage: OrderUsage) => void;
 }
+
+/** Claude tokens spent in one conversation between the previous order (or its start) and this one. */
+export interface OrderUsage {
+  conversation_id: string;
+  order_id: string;
+  dry_run: boolean;
+  model: string;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+}
+
+type Tally = Omit<OrderUsage, "conversation_id" | "order_id" | "dry_run" | "model">;
+const emptyTally = (): Tally => ({ requests: 0, input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+const logOrderUsage = (usage: OrderUsage) => console.info(JSON.stringify({ event: "orderable.order_usage", ...usage }));
 
 const SYSTEM = `You are the ordering assistant for the food businesses connected through Orderable. You chat with customers in a messaging app and use your tools to find locations, browse menus, plan group orders, quote, place, track and cancel orders.
 
@@ -57,6 +76,7 @@ export class OrderableAgent {
   private mcp: Promise<{ client: Client; tools: Anthropic.Beta.BetaTool[] }> | null = null;
   private conversations = new Map<string, Conversation>();
   private queues = new Map<string, Promise<unknown>>();
+  private tallies = new Map<string, Tally>();
 
   /** The Orderable service this agent orders through. */
   get service() {
@@ -94,6 +114,41 @@ export class OrderableAgent {
 
   reset(conversationId: string) {
     this.conversations.delete(conversationId);
+  }
+
+  /** Count a response's tokens against the conversation's next order. */
+  private tally(conversationId: string, usage: Partial<Record<keyof Tally, number | null>> | undefined) {
+    const t = this.tallies.get(conversationId) ?? emptyTally();
+    t.requests += 1;
+    t.input_tokens += usage?.input_tokens ?? 0;
+    t.output_tokens += usage?.output_tokens ?? 0;
+    t.cache_read_input_tokens += usage?.cache_read_input_tokens ?? 0;
+    t.cache_creation_input_tokens += usage?.cache_creation_input_tokens ?? 0;
+    this.tallies.set(conversationId, t);
+  }
+
+  /** After a place_order call: report the tokens it took, once per new order, and start counting again. */
+  private orderPlaced(conversationId: string, resultText: string, model: string) {
+    let placed: { idempotent_replay?: boolean; order?: { order_id?: string; dry_run?: boolean } };
+    try {
+      placed = JSON.parse(resultText);
+    } catch {
+      return;
+    }
+    if (!placed.order?.order_id || placed.idempotent_replay) return;
+    const t = this.tallies.get(conversationId) ?? emptyTally();
+    this.tallies.delete(conversationId);
+    try {
+      (this.opts.onOrderUsage ?? logOrderUsage)({
+        conversation_id: conversationId,
+        order_id: placed.order.order_id,
+        dry_run: placed.order.dry_run ?? false,
+        model,
+        ...t,
+      });
+    } catch {
+      // Usage reporting must never break an order reply.
+    }
   }
 
   /** One customer message in, one reply out. Messages in the same conversation are processed in order. */
@@ -147,6 +202,7 @@ export class OrderableAgent {
         tools,
         messages,
       });
+      this.tally(conversationId, response.usage);
 
       if (response.stop_reason === "refusal") return "Sorry, I can't help with that request.";
       // A turn cut off at max_tokens may hold a truncated tool call: don't run or store it.
@@ -175,6 +231,7 @@ export class OrderableAgent {
               .filter((c) => c.type === "text")
               .map((c) => c.text ?? "")
               .join("\n");
+            if (use.name === "place_order" && !res.isError) this.orderPlaced(conversationId, content, response.model ?? this.model);
             return { type: "tool_result", tool_use_id: use.id, content, ...(res.isError ? { is_error: true } : {}) };
           } catch (e) {
             return {
