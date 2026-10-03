@@ -68,6 +68,13 @@ export default function Agents() {
         Then run <code>openclaw gateway restart</code>. Not tested by us yet.
       </p>
 
+      <h2>OpenMuse (CopilotKit)</h2>
+      <p>
+        <a href="https://github.com/CopilotKit/openmuse">OpenMuse</a> is an open-source personal agent with a browser, files and long-running tasks.
+        As of October 2026 it talks to one built-in MCP server, for web search, and has no setting for adding your own, so it can't reach Orderable
+        yet. We'll put the steps here when it can.
+      </p>
+
       <h2>Meta Muse</h2>
       <p>
         Muse Code, Meta's coding agent, supports MCP servers. As of late September 2026, the Muse consumer app doesn't document a way to add your own
@@ -82,8 +89,9 @@ export default function Agents() {
 
       <h2>Jev (TypeSafe)</h2>
       <p>
-        Jev isn't an agent. It's a fast decision model that agents use to pick the next step, such as which tool to call. If your agent uses Jev for
-        routing, Orderable's tools are just more options for it to choose from.
+        Jev isn't an agent, so it doesn't connect to Orderable directly. In OpenMuse, Jev decides how to present a choice to the person (ask a
+        question, show a comparison, or let the agent answer) and scores the options. If an agent uses Jev that way, Orderable's quotes and menu
+        items can be the options it scores.
       </p>
 
       <h2>Anything else</h2>
